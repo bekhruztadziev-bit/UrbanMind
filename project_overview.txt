@@ -1,0 +1,108 @@
+MahallaMind — project overview
+
+Project purpose
+MahallaMind is a neighborhood mobility intelligence MVP designed to help local planners and stakeholders understand corridor conditions, compare signal and flow interventions, and choose a more effective local mobility strategy.
+
+The project combines a map-based frontend, a FastAPI backend, and SUMO traffic simulation to make the recommendation process explainable rather than opaque. The app is meant to support local decision-making at the mahalla level, not act like a generic city-scale traffic control system.
+
+Core stack
+- Frontend: React + Vite + Leaflet + react-leaflet
+- Backend: FastAPI
+- Simulation: SUMO + TraCI
+- Language: JavaScript/JSX on the frontend, Python on the backend
+- Styling: custom CSS
+- Optional AI layer: Gemini-style provider support with a fallback explanation if no API key is available
+
+Main project structure
+- frontend/src/App.jsx — main dashboard, map UI, language toggle, FAQ view, optimization logic
+- frontend/src/api.js — API client for frontend-backend requests
+- frontend/src/App.css — styling for the dashboard and map experience
+- backend/app/main.py — FastAPI API entry point
+- backend/app/services/mahalla_data.py — neighborhood map data: roads, intersections, facilities, boundaries
+- backend/app/services/sumo_runner.py — simulation engine, metrics computation, intervention ranking
+- backend/app/services/ai.py — explanation logic with deterministic fallback
+- backend/app/services/insights.py — neighborhood summary text and product positioning support
+- backend/test_api.py or backend/test_sumo_runner.py — backend validation/tests for the core logic
+- backend/sim/mahalla-scenario/ — SUMO scenario files and config
+
+How the app works
+1. The frontend loads the map and initial app state.
+2. It requests the neighborhood context from the backend via /api/mahalla.
+3. The user can analyze traffic conditions via /api/metrics.
+4. The user can run optimization via /api/optimize.
+5. The backend computes or estimates traffic metrics and ranks candidate interventions.
+6. The UI displays the selected recommendation, score, and explanation.
+7. If no provider key is available, the app still returns a simulation-based fallback explanation instead of failing.
+
+Frontend behavior
+The main app in frontend/src/App.jsx is responsible for:
+- rendering the dashboard and map
+- storing selected intersection and candidate state
+- loading initial health and neighborhood data
+- switching between dashboard and FAQ views
+- toggling English and Russian languages
+- handling analyze and optimize actions
+- rendering roads, facilities, markers, and map overlays
+
+It uses Leaflet components such as:
+- MapContainer
+- TileLayer
+- Polyline
+- CircleMarker
+- Popup
+- Polygon
+
+The frontend also prepares route-dot flow visuals and area highlight geometry to emphasize the local study region without making the map too visually noisy.
+
+Backend behavior
+The backend in backend/app/main.py exposes the following endpoints:
+- GET /api/health — confirms the service is alive
+- GET /api/mahalla — returns district structure and map context
+- POST /api/metrics — runs or estimates simulation metrics
+- POST /api/optimize — runs candidate ranking and returns best recommendation
+
+The core simulation logic is in backend/app/services/sumo_runner.py:
+- it discovers the local SUMO environment and scenario files
+- runs the simulation for a requested number of steps
+- measures average speed, waiting time, vehicle count, emissions, and access-related metrics
+- compares multiple intervention options against the baseline
+- ranks the best intervention using a deterministic scoring function
+
+The AI explanation layer in backend/app/services/ai.py does the following:
+- checks whether an API key is configured
+- tries to produce an AI-based explanation if available
+- otherwise returns a safe fallback explanation based on measured simulation values
+
+Neighborhood data in backend/app/services/mahalla_data.py defines:
+- polygon bounds of the mahalla area
+- roads
+- intersections
+- facility locations such as schools, clinics, market places, and community services
+
+The purpose of this is to make the app feel grounded in a real local district rather than a generic abstract network.
+
+What the project is trying to achieve
+MahallaMind aims to:
+- bring local corridor intelligence into one interface
+- help planners compare interventions before acting
+- show why a signal change is recommended
+- keep the recommendation process explainable and deterministic
+- support a neighborhood-level digital twin rather than a simplified generic traffic demo
+
+Current project status
+The application is in a working local demo state with a live frontend and functional backend integration. The UI has been refined to reduce visual noise, improve readability, and make the product feel more polished and premium.
+
+The project has also reached a stage where the brand is intentionally kept as MAHALLAMIND in English across languages, the FAQ was moved to a dedicated page, the map is cleaner, and the local area is highlighted more minimally.
+
+The main remaining technical issue is frontend build validation: the command npm run build still reports a SyntaxError in the current environment, so the app is runtime-usable but not yet fully production-build verified.
+
+Future roadmap
+1. Resolve the frontend build validation issue and verify a clean production build.
+2. Finalize map overlay polish and boundary design.
+3. Tighten data consistency between frontend display and backend optimization outputs.
+4. Expand multi-scenario analysis with peak-hour and time-of-day behavior.
+5. Increase realism and neighborhood coverage.
+6. Prepare final demo-ready product framing and deployment notes.
+
+Summary
+MahallaMind is a full-stack neighborhood mobility intelligence platform. It uses a React frontend, a FastAPI backend, SUMO simulation, and explainable scoring to compare local traffic interventions and recommend the best decision for the mahalla environment.

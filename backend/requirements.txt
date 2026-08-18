@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+traci
+sumolib
+google-generativeai
+google-genai
+pydantic-settings
+python-dotenv
+psutil

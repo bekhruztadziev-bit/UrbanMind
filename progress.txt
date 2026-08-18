@@ -1,0 +1,50 @@
+MahallaMind — current status and roadmap
+
+Current state
+- The front-end is live in local demo mode at http://localhost:5173 and continues to be used for design/UI validation.
+- The backend remains the canonical routing and simulation layer for the Mahalla app, exposing /api/health, /api/mahalla, /api/metrics, and /api/optimize.
+- The project is positioned as a neighborhood mobility intelligence dashboard for local signal and corridor decisions, not a generic city traffic dashboard.
+- UI refinements are now substantially implemented: cleaner dashboard layout, dedicated FAQ page, Russian toggle, stronger product branding, and a more minimal map treatment.
+- The app still depends on a valid local SUMO environment for true simulation use; without that, the project falls back to offline demo data and deterministic local preview behavior.
+
+What has been implemented
+- FastAPI backend and API contract for health, mahalla context, metrics, and optimization.
+- SUMO-driven optimization workflow with deterministic intervention comparison.
+- Multi-objective scoring logic covering delay, queueing, emissions, accessibility, and pedestrian impact.
+- Safe AI explanation layer with fallback when provider credentials are not configured.
+- React + Vite dashboard with a map, candidate cards, metric panels, and localized UI text.
+- FAQ as a dedicated page rather than a bottom-of-dashboard block.
+- Russian language support and precise copy updates.
+- Branding consistency: MAHALLAMIND remains in English across both language modes.
+- Map visual cleanup: no traffic-light icons, no noisy vehicle animations, cleaner road layer, denser flow dots, and a more minimal affected-area highlight.
+- Updated affected-area framing toward a crisp, minimal box-like boundary rather than road-trace style overlays.
+
+Current constraints and blockers
+- The main known blocker is frontend production validation: the command `npm run build` in the frontend still exits with `SyntaxError: invalid syntax`.
+- This means the app is visually working in the browser, but the project has not yet reached a clean production build verification state.
+- Until that build issue is resolved, the runtime is considered demo-valid, not fully production-verified.
+- The app remains locally oriented and still uses demo/offline neighborhood context when the full simulation environment is not available.
+
+Design decisions and recent refinements
+- The experience was intentionally stripped of decorative traffic-light clutter and unnatural vehicle motion to reduce visual noise.
+- The map now emphasizes context, corridor logic, and decision support rather than simulating a chaotic city picture.
+- The area highlight is intended to feel minimal and readable, with a subtle box-like frame that marks the intervention area without competing with the road network.
+- The FAQ was moved into its own dedicated page to make the app feel more premium and less crowded.
+- Language quality was adjusted to keep the brand English while making the Russian translations more precise and consistent.
+
+Current operational status
+- Frontend runtime: local demo page is available at http://localhost:5173
+- Backend runtime: the API layer remains available for the app workflow and local simulation context
+- Build validation: pending; production build is currently not confirmed due to the SyntaxError in the frontend build step
+
+Future roadmap
+1. Resolve the frontend build error and validate a clean production build.
+2. Finalize the exact visual map treatment for the affected-area overlay and corridor highlight.
+3. Tighten data consistency between frontend display and backend optimization outputs.
+4. Expand scenario realism with more corridor and facility weighting.
+5. Add time-of-day and multiple neighborhood scenarios.
+6. Improve explainability and before/after rationale text for presentation and demo readiness.
+7. Prepare final demo framing, deployment notes, and pitch-ready product summary.
+
+Project identity
+MahallaMind is intended to be a neighborhood mobility intelligence platform for local street management, explainable signal tuning, and practical resident-centered planning decisions. It is evolving from a traffic demo toward a more polished neighborhood digital twin and decision-support product.
