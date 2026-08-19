@@ -70,3 +70,21 @@ def test_optimize_explanation_contains_signal_specific_reasoning():
     assert "signal_focus" in ai
     assert isinstance(ai["signal_focus"], str)
     assert len(ai["signal_focus"]) > 10
+
+
+def test_ai_explain_endpoint():
+    payload = {
+        "baseline": {"average_speed_kmh": 25.0, "average_waiting_seconds": 30.0},
+        "candidates": [{"id": "extend_green_5s_mobility"}],
+        "best_candidate": {"id": "extend_green_5s_mobility", "description": "Extend Green Phase by 5s"},
+    }
+    response = client.post("/api/ai/explain", json=payload)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "recommendation" in data
+    assert "reasoning" in data
+    assert "tradeoffs" in data
+    assert isinstance(data["tradeoffs"], list)
+    assert "provenance" in data
+    assert data["provenance"] == "ANALYTICAL INTERPRETATION"
+

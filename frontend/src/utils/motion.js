@@ -1,23 +1,29 @@
+import { useState, useEffect, useRef } from 'react'
+
 /**
- * Motion System using Web Animations API
- * Designed to respect prefers-reduced-motion
+ * Motion System using Web Animations API and React State Interpolation.
+ * Strictly respects prefers-reduced-motion.
  */
 
 export const isReducedMotion = () => {
+  if (typeof window === 'undefined') return true
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 const defaultTiming = {
-  duration: 300,
+  duration: 380,
   easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
   fill: 'forwards'
 }
 
+/**
+ * Animate single element entering smoothly into view.
+ */
 export const animateEnter = (element, delay = 0) => {
   if (!element || isReducedMotion()) return null
 
   return element.animate([
-    { opacity: 0, transform: 'translateY(10px)' },
+    { opacity: 0, transform: 'translateY(12px)' },
     { opacity: 1, transform: 'translateY(0)' }
   ], {
     ...defaultTiming,
@@ -25,46 +31,81 @@ export const animateEnter = (element, delay = 0) => {
   })
 }
 
-export const animateHighlight = (element) => {
-  if (!element || isReducedMotion()) return null
+/**
+ * Animate multiple elements with progressive staggered entrance.
+ */
+export const staggerEnter = (elements, baseDelay = 55) => {
+  if (!elements || isReducedMotion()) return
 
-  return element.animate([
-    { backgroundColor: 'var(--accent-primary-glow)' },
-    { backgroundColor: 'transparent' }
-  ], {
-    duration: 800,
-    easing: 'ease-out',
-    fill: 'forwards'
+  const list = Array.isArray(elements) ? elements : Array.from(elements || [])
+  list.forEach((el, index) => {
+    if (el) animateEnter(el, index * baseDelay)
   })
 }
 
 /**
- * Animates a number transition in a given element.
- * Assumes the element contains the number text.
+ * Briefly highlight an element when selected or modified.
  */
-export const animateNumber = (element, startVal, endVal, duration = 400) => {
-  if (!element || isReducedMotion()) {
-    element.textContent = endVal.toFixed(2)
-    return null
-  }
+export const animateHighlight = (element) => {
+  if (!element || isReducedMotion()) return null
 
-  let startTime = null
-  const step = (currentTime) => {
-    if (!startTime) startTime = currentTime
-    const progress = Math.min((currentTime - startTime) / duration, 1)
-    
-    // Ease out quart
-    const easeProgress = 1 - Math.pow(1 - progress, 4)
-    const currentVal = startVal + (endVal - startVal) * easeProgress
-    
-    element.textContent = currentVal.toFixed(2)
-    
-    if (progress < 1) {
-      window.requestAnimationFrame(step)
-    } else {
-      element.textContent = endVal.toFixed(2)
-    }
-  }
-  
-  window.requestAnimationFrame(step)
+  return element.animate([
+    { borderColor: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary-glow)' },
+    { borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-elevated)' }
+  ], {
+    duration: 550,
+    easing: 'ease-out'
+  })
 }
+
+/**
+ * React Hook for smooth numerical value transitions.
+ * Transition: old value -> smooth interpolation -> new value -> settle.
+ * Does NOT continuously animate static values.
+ */
+export function useAnimatedNumber(targetValue, decimals = 0, duration = 450) {
+  const numTarget = typeof targetValue === 'number' && !isNaN(targetValue) ? targetValue : 0
+  const [displayValue, setDisplayValue] = useState(numTarget)
+  const prevValueRef = useRef(numTarget)
+  const animRef = useRef(null)
+
+  useEffect(() => {
+    const startVal = prevValueRef.current
+    const endVal = numTarget
+
+    if (isReducedMotion() || startVal === endVal) {
+      setDisplayValue(endVal)
+      prevValueRef.current = endVal
+      return
+    }
+
+    const startTime = performance.now()
+    if (animRef.current) cancelAnimationFrame(animRef.current)
+
+    const updateNumber = (now) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // Ease-out quartic
+      const ease = 1 - Math.pow(1 - progress, 4)
+      const current = startVal + (endVal - startVal) * ease
+
+      setDisplayValue(current)
+
+      if (progress < 1) {
+        animRef.current = requestAnimationFrame(updateNumber)
+      } else {
+        setDisplayValue(endVal)
+        prevValueRef.current = endVal
+      }
+    }
+
+    animRef.current = requestAnimationFrame(updateNumber)
+
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current)
+    }
+  }, [numTarget, decimals, duration])
+
+  return Number(displayValue).toFixed(decimals)
+}
+

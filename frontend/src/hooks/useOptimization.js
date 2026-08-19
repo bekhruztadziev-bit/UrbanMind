@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { fetchMetrics, fetchOptimize } from '../api/client'
+import { fetchMetrics, fetchOptimize, fetchAIExplanation } from '../api/client'
 
 const defaultMetrics = {
   average_speed_kmh: 0,
@@ -15,6 +15,11 @@ export function useOptimization(mahalla, scenario) {
   const [loading, setLoading] = useState(false)
   const [optError, setOptError] = useState('')
 
+  // Explicit AI Analysis states: 'READY' | 'ANALYZING' | 'COMPLETE' | 'ERROR' | 'FALLBACK'
+  const [aiState, setAiState] = useState('READY')
+  const [aiData, setAiData] = useState(null)
+  const [aiError, setAiError] = useState('')
+
   const handleAnalyze = async () => {
     setLoading(true)
     setOptError('')
@@ -23,6 +28,8 @@ export function useOptimization(mahalla, scenario) {
       setMetrics(data)
       setOptResult(null)
       setSelectedCandidateId(null)
+      setAiState('READY')
+      setAiData(null)
     } catch (err) {
       setOptError(err.message)
     } finally {
@@ -38,11 +45,35 @@ export function useOptimization(mahalla, scenario) {
       setOptResult(data)
       setMetrics(data.baseline)
       setSelectedCandidateId(data.best_candidate?.id || null)
+      if (data.ai) {
+        setAiData(data.ai)
+        setAiState(data.ai.status === 'FALLBACK' ? 'FALLBACK' : 'COMPLETE')
+      } else {
+        setAiState('READY')
+      }
       if (onSuccess) onSuccess(data)
     } catch (err) {
       setOptError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRunAIExplanation = async () => {
+    if (!optResult) return
+    setAiState('ANALYZING')
+    setAiError('')
+    try {
+      const explanation = await fetchAIExplanation({
+        baseline: optResult.baseline || metrics,
+        candidates: optResult.ranked_candidates || optResult.candidates || [],
+        best_candidate: selectedCandidate || optResult.best_candidate,
+      })
+      setAiData(explanation)
+      setAiState(explanation.status === 'FALLBACK' ? 'FALLBACK' : 'COMPLETE')
+    } catch (err) {
+      setAiError(err.message || 'AI assessment service unavailable')
+      setAiState('ERROR')
     }
   }
 
@@ -65,6 +96,10 @@ export function useOptimization(mahalla, scenario) {
     selectedCandidate,
     loading,
     optError,
+    aiState,
+    aiData,
+    aiError,
+    handleRunAIExplanation,
     handleAnalyze,
     handleOptimize
   }

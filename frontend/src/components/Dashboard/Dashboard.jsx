@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { MetricsGrid } from './MetricsGrid'
 import { RecommendationPanel } from './RecommendationPanel'
 import { AIExplanation } from './AIExplanation'
 import { CandidateList } from './CandidateList'
 import { EnvironmentPanel } from './EnvironmentPanel'
 import { useEnvironment } from '../../hooks/useEnvironment'
+import { staggerEnter } from '../../utils/motion'
+
 export function Dashboard({
   t,
   language,
@@ -18,16 +20,33 @@ export function Dashboard({
   setSelectedId,
   handleAnalyze,
   handleOptimize,
+  aiState = 'READY',
+  aiData = null,
+  aiError = '',
+  handleRunAIExplanation,
   loading,
   error,
   setCurrentView,
   onTestInExplore
 }) {
-  const envData = useEnvironment();
+  const envData = useEnvironment()
+  const sidebarRef = useRef(null)
+  const resultsRef = useRef(null)
+
+  useEffect(() => {
+    if (sidebarRef.current) {
+      const cards = sidebarRef.current.querySelectorAll('.panel-card')
+      staggerEnter(cards, 45)
+    }
+    if (resultsRef.current) {
+      const cards = resultsRef.current.querySelectorAll('.panel-card')
+      staggerEnter(cards, 60)
+    }
+  }, [])
 
   return (
     <>
-      <aside className="sidebar">
+      <aside className="sidebar" ref={sidebarRef}>
         <div className="panel-card">
           <h2>{t.selectedLocation}</h2>
           {selectedIntersection ? (
@@ -77,9 +96,16 @@ export function Dashboard({
         {error && <div className="panel-card error-box">{error}</div>}
       </aside>
 
-      <section className="results-panel">
+      <section className="results-panel" ref={resultsRef}>
         <RecommendationPanel t={t} language={language} selectedCandidate={selectedCandidate} onTestInExplore={onTestInExplore} />
-        <AIExplanation t={t} optResult={optResult} />
+        <AIExplanation
+          t={t}
+          optResult={optResult}
+          aiState={aiState}
+          aiData={aiData}
+          aiError={aiError}
+          onRunAIExplanation={handleRunAIExplanation}
+        />
         <CandidateList
           t={t}
           optResult={optResult}
@@ -92,3 +118,4 @@ export function Dashboard({
     </>
   )
 }
+

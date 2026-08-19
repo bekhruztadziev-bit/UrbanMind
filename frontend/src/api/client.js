@@ -36,6 +36,15 @@ export async function fetchOptimize(payload = {}) {
   return handleResponse(response)
 }
 
+export async function fetchAIExplanation(payload = {}) {
+  const response = await fetch(`${API_BASE}/ai/explain`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
 export async function fetchScenarioRun(payload = {}) {
   const response = await fetch(`${API_BASE}/scenario/run`, {
     method: 'POST',

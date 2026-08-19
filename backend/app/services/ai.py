@@ -20,6 +20,9 @@ def _fallback_explanation(baseline: dict[str, Any], candidates: list[dict[str, A
         else "Signal focus: the most effective intervention across the simulated corridor, balancing mobility and neighborhood access."
     )
     return {
+        "status": "FALLBACK",
+        "provider": "deterministic_fallback",
+        "provenance": "ANALYTICAL INTERPRETATION",
         "recommendation": (
             f"AI analysis unavailable; recommendation is based on simulation metrics for {signal_id or 'the selected signal'} and is optimized across delay, emissions, accessibility, and safety."
         ),
@@ -43,7 +46,12 @@ def _fallback_explanation(baseline: dict[str, Any], candidates: list[dict[str, A
 
 def _provider_available() -> bool:
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-    return bool(api_key)
+    if not api_key:
+        return False
+    key = api_key.strip()
+    if key in ["", "your-gemini-api-key-here", "your-google-api-key-here"]:
+        return False
+    return True
 
 
 def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], best: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -62,74 +70,84 @@ def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], 
     if not _provider_available():
         return fallback
 
+    api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY", "")).strip()
+    model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
+    best_desc = best.get("description", best_name) if best else best_name
+    best_delta = best.get("delta", {}) if best else {}
+
+    prompt = (
+        "You are an urban mobility intelligence AI interpreting traffic simulation results. "
+        "Strictly return valid JSON only (no markdown, no backticks). "
+        "JSON structure: {\n"
+        '  "recommendation": "string (mention this is based on simulation, not live field measurement)",\n'
+        '  "reasoning": "string with detailed explanation of why this intervention was selected",\n'
+        '  "tradeoffs": ["string 1", "string 2", "string 3"],\n'
+        '  "confidence": "high" | "medium" | "low",\n'
+        '  "signal_focus": "string detailing targeted traffic lights",\n'
+        '  "scope": "string describing scope of timing and flow optimization",\n'
+        '  "expected_impact": "string describing expected local benefit"\n'
+        "}\n\n"
+        f"Context:\n"
+        f"- Target Signal: {signal_id or 'Corridor bottleneck'}\n"
+        f"- Baseline average speed: {baseline_speed:.2f} km/h, average wait: {baseline_wait:.2f} s\n"
+        f"- Selected Best Intervention: {best_desc}\n"
+        f"- Best average speed: {best_speed:.2f} km/h, average wait: {best_wait:.2f} s\n"
+        f"- Improvement deltas: {best_delta}\n"
+        f"- Number of candidates evaluated: {len(candidates)}"
+    )
+
     try:
-        api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise RuntimeError("AI API key missing")
-
+        raw_text = None
+        
+        # Try google-genai first
         try:
-            import google.generativeai as genai
+            from google import genai as google_genai
+            client = google_genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            raw_text = getattr(response, "text", "") or ""
         except Exception:
-            try:
-                from google import genai as google_genai  # type: ignore
-            except Exception as exc:  # pragma: no cover
-                raise RuntimeError(f"AI dependency missing: {exc}") from exc
-            else:
-                client = google_genai.Client(api_key=api_key)
-                model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=(
-                        "Generate concise JSON with recommendation, reasoning, tradeoffs, confidence. "
-                        "Use only the provided simulation metrics. "
-                        f"Baseline speed: {baseline_speed}; baseline wait: {baseline_wait}; best intervention: {best_name}; best speed: {best_speed}; best wait: {best_wait}."
-                    ),
-                )
-                text = getattr(response, "text", "") or ""
-                if not text:
-                    raise RuntimeError("Empty AI response")
-                cleaned = text.strip()
-                if cleaned.startswith("```"):
-                    cleaned = cleaned.strip("`")
-                    if cleaned.lower().startswith("json"):
-                        cleaned = cleaned[4:].strip()
-                payload = json.loads(cleaned)
-                return payload if isinstance(payload, dict) else fallback
+            # Fall back to google.generativeai
+            import google.generativeai as legacy_genai
+            legacy_genai.configure(api_key=api_key)
+            model = legacy_genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            raw_text = getattr(response, "text", "") or ""
 
-        genai.configure(api_key=api_key)
-        model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
-        model = genai.GenerativeModel(model_name)
+        if not raw_text:
+            raise RuntimeError("Empty response from AI provider")
 
-        best_desc = best.get("description", "best measured intervention") if best else "best measured intervention"
-        best_delta = best.get("delta", {}) if best else {}
-        prompt = (
-            "You are generating a short operational recommendation from simulation metrics. "
-            "Some metrics (speed, wait time) are simulated directly. "
-            "Environmental metrics (CO2, NOx, Noise) and accessibility are formulaic estimates. "
-            "Do not claim these estimates are physical measurements. Use phrases like 'estimated to decrease'. "
-            f"Baseline average speed: {baseline_speed} km/h. Baseline average waiting: {baseline_wait} seconds. "
-            f"Best measured intervention: {best_desc}. "
-            f"Best average speed: {best_speed} km/h. Best average waiting: {best_wait} seconds. "
-            f"Improvement deltas: {best_delta}. "
-            "Provide concise JSON with keys: recommendation, reasoning, tradeoffs, confidence. "
-            "The recommendation should mention that the result is based on the simulation and not field data."
-        )
-
-        response = model.generate_content(prompt)
-        text = getattr(response, "text", "")
-        if not text:
-            raise RuntimeError("Empty AI response")
-
-        cleaned = text.strip()
+        cleaned = raw_text.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.strip("`")
             if cleaned.lower().startswith("json"):
                 cleaned = cleaned[4:].strip()
 
         payload = json.loads(cleaned)
-        if not isinstance(payload, dict):
-            raise ValueError("AI response was not a JSON object")
-        return payload
+        if isinstance(payload, dict):
+            # Ensure tradeoffs is list
+            tradeoffs = payload.get("tradeoffs")
+            if isinstance(tradeoffs, str):
+                tradeoffs = [tradeoffs]
+            elif not isinstance(tradeoffs, list):
+                tradeoffs = fallback["tradeoffs"]
+
+            return {
+                "status": "COMPLETE",
+                "provider": "gemini",
+                "provenance": "ANALYTICAL INTERPRETATION",
+                "recommendation": str(payload.get("recommendation") or fallback["recommendation"]),
+                "reasoning": str(payload.get("reasoning") or fallback["reasoning"]),
+                "tradeoffs": tradeoffs,
+                "confidence": str(payload.get("confidence") or "medium"),
+                "signal_focus": str(payload.get("signal_focus") or signal_focus),
+                "best_signal_id": signal_id,
+                "scope": str(payload.get("scope") or fallback["scope"]),
+                "expected_impact": str(payload.get("expected_impact") or fallback["expected_impact"]),
+            }
+        return fallback
     except Exception:
         return fallback
 

@@ -92,6 +92,23 @@ async def optimize(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         ) from exc
 
 
+@app.post("/api/ai/explain")
+async def explain_optimization(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Generate structured AI explanation interpreting simulation & optimization outcomes."""
+    body = payload or {}
+    baseline = body.get("baseline", {})
+    candidates = body.get("candidates", [])
+    best_candidate = body.get("best_candidate")
+    try:
+        explanation = await asyncio.to_thread(explain_results, baseline, candidates, best_candidate)
+        return explanation
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI explanation failed: {exc}",
+        ) from exc
+
+
 @app.post("/api/scenario/run")
 async def run_scenario(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     body = payload or {}

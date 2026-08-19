@@ -65,6 +65,10 @@ function App() {
     selectedCandidate,
     loading: optLoading,
     optError,
+    aiState,
+    aiData,
+    aiError,
+    handleRunAIExplanation,
     handleAnalyze,
     handleOptimize
   } = useOptimization(mahalla, scenario)
@@ -184,6 +188,10 @@ function App() {
         handleOptimize={() => handleOptimize((data) => {
           setSelectedId('intersection_1')
         })}
+        aiState={aiState}
+        aiData={aiData}
+        aiError={aiError}
+        handleRunAIExplanation={handleRunAIExplanation}
         loading={optLoading}
         error={globalError || optError}
         setCurrentView={setCurrentView}
