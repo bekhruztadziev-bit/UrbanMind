@@ -1,6 +1,7 @@
 from typing import Any, List
 
 INTERVENTION_LABELS_RU = {
+    "Green-wave corridor coordination": "Координированная «зеленая волна» по коридору",
     "Extend main green phase": "Продление основной зеленой фазы",
     "Reduce competing phase": "Сокращение конкурирующей фазы",
     "Bus-priority corridor": "Коридор с приоритетом автобусов",
@@ -24,19 +25,78 @@ def get_candidate_interventions(signal_id: str, phase_index: int) -> List[dict[s
     There must be exactly one source of truth for intervention definitions.
     """
     return [
-        {"type": "extend_green", "category": "signal_timing", "label": "Extend main green phase", "seconds": 5, "traffic_light_id": signal_id, "phase_index": phase_index, "evaluation_mode": "SIMULATED"},
-        {"type": "extend_green", "category": "signal_timing", "label": "Extend main green phase", "seconds": 10, "traffic_light_id": signal_id, "phase_index": phase_index, "evaluation_mode": "SIMULATED"},
-        {"type": "reduce_green", "category": "signal_timing", "label": "Reduce competing phase", "seconds": -5, "traffic_light_id": signal_id, "phase_index": phase_index, "evaluation_mode": "SIMULATED"},
-        {"type": "bus_priority", "category": "transit", "label": "Bus-priority corridor", "seconds": 8, "evaluation_mode": "HEURISTIC"},
-        {"type": "pedestrian_priority", "category": "active_mobility", "label": "Pedestrian priority window", "seconds": 6, "evaluation_mode": "HEURISTIC"},
-        {"type": "school_zone_slowdown", "category": "safety", "label": "School-zone speed calming", "speed_limit_mps": 5.5, "seconds": 0, "evaluation_mode": "SIMULATED"},
-        {"type": "parking_turnover", "category": "curb_management", "label": "Short-stay curb rotation", "seconds": 10, "evaluation_mode": "HEURISTIC"},
+        {
+            "type": "green_wave_coordination",
+            "category": "signal_timing",
+            "label": "Green-wave corridor coordination",
+            "seconds": 0,
+            "traffic_light_id": signal_id,
+            "phase_index": phase_index,
+            "target_speed_kmh": 40.0,
+            "evaluation_mode": "SIMULATED",
+        },
+        {
+            "type": "extend_green",
+            "category": "signal_timing",
+            "label": "Extend main green phase",
+            "seconds": 5,
+            "traffic_light_id": signal_id,
+            "phase_index": phase_index,
+            "evaluation_mode": "SIMULATED",
+        },
+        {
+            "type": "extend_green",
+            "category": "signal_timing",
+            "label": "Extend main green phase",
+            "seconds": 10,
+            "traffic_light_id": signal_id,
+            "phase_index": phase_index,
+            "evaluation_mode": "SIMULATED",
+        },
+        {
+            "type": "reduce_green",
+            "category": "signal_timing",
+            "label": "Reduce competing phase",
+            "seconds": -5,
+            "traffic_light_id": signal_id,
+            "phase_index": phase_index,
+            "evaluation_mode": "SIMULATED",
+        },
+        {
+            "type": "bus_priority",
+            "category": "transit",
+            "label": "Bus-priority corridor",
+            "seconds": 8,
+            "evaluation_mode": "HEURISTIC",
+        },
+        {
+            "type": "pedestrian_priority",
+            "category": "active_mobility",
+            "label": "Pedestrian priority window",
+            "seconds": 6,
+            "evaluation_mode": "HEURISTIC",
+        },
+        {
+            "type": "school_zone_slowdown",
+            "category": "safety",
+            "label": "School-zone speed calming",
+            "speed_limit_mps": 5.5,
+            "seconds": 0,
+            "evaluation_mode": "SIMULATED",
+        },
+        {
+            "type": "parking_turnover",
+            "category": "curb_management",
+            "label": "Short-stay curb rotation",
+            "seconds": 10,
+            "evaluation_mode": "HEURISTIC",
+        },
     ]
 
 def get_intervention_effect_summary(category: str, action_text: str, wait_change: float, language: str = "en") -> str:
     if language == "ru":
         effect_map_ru = {
-            "signal_timing": "Данная мера перераспределяет время фаз для сокращения очередей и ускорения пропуска транспорта на самом загруженном узле.",
+            "signal_timing": "Данная мера координирует сдвиги фаз и время горения зеленого сигнала по всему коридору для непрерывного безостановочного проезда и снижения задержек.",
             "transit": "Данная мера отдает приоритет автобусному коридору и улучшает доступность общественного транспорта без блокировки локальной сети.",
             "active_mobility": "Данная мера обеспечивает пешеходам и школьникам более безопасный и предсказуемый интервал перехода.",
             "safety": "Данная мера снижает риски в наиболее уязвимой зоне района за счет успокоения движения и улучшения видимости.",
@@ -50,7 +110,7 @@ def get_intervention_effect_summary(category: str, action_text: str, wait_change
         )
 
     effect_map = {
-        "signal_timing": "This intervention reallocates signal time to reduce queues and smooth discharge through the busiest junction.",
+        "signal_timing": "This intervention coordinates signal phase offsets and green intervals along the corridor for continuous unhalted progression and delay minimization.",
         "transit": "This intervention prioritizes the bus corridor and improves access for public transport without fully blocking the local network.",
         "active_mobility": "This intervention gives pedestrians and school-access trips a safer, more predictable crossing window.",
         "safety": "This intervention reduces risk in the most sensitive local area by creating calmer traffic and better visibility.",

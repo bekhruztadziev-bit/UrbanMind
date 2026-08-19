@@ -113,7 +113,7 @@ def test_experiment_control_cache(mock_run_sim, mock_signal):
         for c in all_interventions
         if c.get("evaluation_mode") == "SIMULATED"
     ]
-    assert len(simulated_ids) == 4, "Registry must have exactly 4 SIMULATED interventions"
+    assert len(simulated_ids) == 5, "Registry must have exactly 5 SIMULATED interventions"
 
     traffic_levels = [0.8, 1.2]
 
@@ -124,9 +124,9 @@ def test_experiment_control_cache(mock_run_sim, mock_signal):
         "duration": 50,
     })
 
-    # 1 control + len(simulated_ids) scenario calls
-    assert mock_run_sim.call_count == 10, f"Expected 10 total run_simulation calls, got {mock_run_sim.call_count}"
-    assert result["summary"]["completed"] == 2 * 4
+    # 2 control calls + (2 levels * 5 simulated interventions) = 12 calls
+    assert mock_run_sim.call_count == 12, f"Expected 12 total run_simulation calls, got {mock_run_sim.call_count}"
+    assert result["summary"]["completed"] == 2 * 5
     assert result["summary"]["failed"] == 0
 
 

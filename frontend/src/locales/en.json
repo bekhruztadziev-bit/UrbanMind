@@ -188,5 +188,17 @@
   "introDesc": "Traffic flow simulation, signal timing optimization, and environmental monitoring powered by SUMO physics and multi-objective Gemini AI.",
   "introLaunch": "Launch Platform →",
   "introDontShow": "Don't show this screen on startup",
-  "introMenu": "Intro"
+  "introMenu": "Intro",
+  "travelTime": "Travel Time",
+  "queueLength": "Queue Length",
+  "stopsPerVehicle": "Stops / Vehicle",
+  "throughput": "Throughput",
+  "baselineVsOptimized": "Baseline vs. Optimized Corridor",
+  "improvement": "Improvement",
+  "tradeoff": "Trade-off",
+  "greenWave": "Green-Wave Corridor Coordination",
+  "metric": "Metric",
+  "provenance": "Provenance",
+  "directSimulated": "DIRECT SIMULATION",
+  "calibratedFallback": "CALIBRATED FALLBACK"
 }

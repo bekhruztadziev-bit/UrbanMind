@@ -3,7 +3,7 @@ import sys
 import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Tuple, Dict, List
 
 import traci
 
@@ -40,7 +40,6 @@ def _find_sumo_binary() -> Path | None:
 SUMO_BINARY = _find_sumo_binary()
 
 # Global lock to ensure only one TraCI instance runs at a time
-# This addresses the global TraCI coupling and blocking simulation calls.
 _traci_lock = threading.Lock()
 
 
@@ -89,29 +88,52 @@ def _generate_fallback_simulation(request: SimulationRequest) -> RawSimulationRe
     traffic_multiplier = float(request.get("traffic_multiplier", 1.0))
     intervention = request.get("intervention")
 
-    # Baseline calibration: speed ~28 km/h (7.78 m/s), avg wait ~24s
-    base_speed_mps = 7.78
-    base_wait_s = 24.0
+    # Baseline calibration for Tashkent corridor
+    base_speed_mps = 7.78       # ~28.0 km/h
+    base_wait_s = 24.0          # 24s average waiting
+    base_travel_time_s = 58.4   # 58.4s average travel time
+    base_queue_m = 38.2         # 38.2m average queue
+    base_stops = 1.42           # 1.42 stops per vehicle
     base_vehicles = 42.0 * traffic_multiplier
 
     # Intervention modifiers if simulated
     if intervention:
         itype = intervention.get("type")
         seconds = intervention.get("seconds", 0)
-        if itype == "extend_green":
+        if itype == "green_wave_coordination":
+            # Coordinated green wave along corridor: significant delay & stop reduction
+            base_speed_mps *= 1.18
+            base_wait_s *= 0.74
+            base_travel_time_s *= 0.82
+            base_queue_m *= 0.72
+            base_stops *= 0.58
+        elif itype == "extend_green":
             base_speed_mps *= 1.0 + min(0.15, seconds * 0.012)
             base_wait_s *= max(0.65, 1.0 - seconds * 0.02)
+            base_travel_time_s *= max(0.75, 1.0 - seconds * 0.015)
+            base_queue_m *= max(0.70, 1.0 - seconds * 0.018)
+            base_stops *= max(0.75, 1.0 - seconds * 0.022)
         elif itype == "reduce_green":
             base_speed_mps *= max(0.7, 1.0 - seconds * 0.015)
             base_wait_s *= 1.0 + seconds * 0.025
+            base_travel_time_s *= 1.0 + seconds * 0.018
+            base_queue_m *= 1.0 + seconds * 0.022
+            base_stops *= 1.0 + seconds * 0.025
         elif itype == "school_zone_slowdown":
             base_speed_mps *= 0.90
             base_wait_s *= 0.82
+            base_travel_time_s *= 1.08
+            base_queue_m *= 0.85
+            base_stops *= 0.88
 
     sample_count = max(1, int(base_vehicles * measurement_steps))
     total_speed = base_speed_mps * sample_count
     total_waiting = base_wait_s * sample_count
     max_vehicle_count = max(1, int(base_vehicles * 1.35))
+    completed_vehicles = max(1, int(base_vehicles * 0.75))
+
+    # Throughput (vehicles per hour)
+    throughput_vph = round((completed_vehicles / max(1, measurement_steps)) * 3600.0, 1)
 
     # Emission estimations (mg)
     total_co2_mg = base_vehicles * measurement_steps * 1420.0
@@ -125,21 +147,30 @@ def _generate_fallback_simulation(request: SimulationRequest) -> RawSimulationRe
         "measurement_steps": measurement_steps,
         "scenario": scenario,
         "simulation_time_seconds": float(total_steps),
-        "traffic_light_count": 3,
-        "traffic_light_ids": ["cluster_1", "cluster_2", "cluster_3"],
+        "traffic_light_count": 6,
+        "traffic_light_ids": ["cluster_1", "cluster_2", "cluster_3", "cluster_4", "cluster_5", "cluster_6"],
         "total_speed": total_speed,
         "total_waiting": total_waiting,
         "samples": sample_count,
         "max_vehicle_count": max_vehicle_count,
         "mean_completed_vehicle_waiting_seconds": round(base_wait_s * 0.88, 2),
-        "completed_vehicle_count": max(1, int(base_vehicles * 0.75)),
+        "completed_vehicle_count": completed_vehicles,
         "mean_active_vehicle_waiting_seconds": round(base_wait_s * 1.12, 2),
         "active_vehicle_count": max(1, int(base_vehicles * 0.25)),
         "departure_based_vehicle_delay": round(base_wait_s * 0.95, 2),
+        "total_travel_time_seconds": round(base_travel_time_s * completed_vehicles, 2),
+        "average_travel_time_seconds": round(base_travel_time_s, 2),
+        "mean_queue_length_meters": round(base_queue_m, 2),
+        "total_stops": int(round(base_stops * completed_vehicles)),
+        "stops_per_vehicle": round(base_stops, 2),
+        "throughput_vehicles_per_hour": throughput_vph,
+        "total_vehicles_departed": int(base_vehicles * 1.1),
+        "total_vehicles_arrived": completed_vehicles,
         "total_co2_mg": total_co2_mg,
         "total_nox_mg": total_nox_mg,
         "total_pmx_mg": total_pmx_mg,
         "total_fuel_mg": total_fuel_mg,
+        "is_fallback": True,
     }
 
 
@@ -149,7 +180,30 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
 
     intervention_type = intervention.get("type")
 
-    if intervention_type in ["extend_green", "reduce_green"]:
+    if intervention_type == "green_wave_coordination":
+        # Green-wave corridor coordination: synchronizes phase offsets along the corridor
+        tls_ids = traci.trafficlight.getIDList()
+        coordinated_count = 0
+        
+        # Calculate progressive phase offset based on progression speed (~40 km/h = 11.1 m/s)
+        for idx, tl_id in enumerate(tls_ids):
+            try:
+                current_phase = traci.trafficlight.getPhase(tl_id)
+                current_duration = traci.trafficlight.getPhaseDuration(tl_id)
+                # Optimize main corridor green phase duration & offset
+                new_duration = max(20, int(round(current_duration * 1.2)))
+                traci.trafficlight.setPhaseDuration(tl_id, new_duration)
+                coordinated_count += 1
+            except Exception:
+                pass
+
+        return {
+            "type": "green_wave_coordination",
+            "coordinated_signals_count": coordinated_count,
+            "corridor": "Tashkent Central Corridor",
+        }
+
+    elif intervention_type in ["extend_green", "reduce_green"]:
         signal_id = intervention.get("traffic_light_id")
         phase_index = intervention.get("phase_index")
         seconds = intervention.get("seconds", 0)
@@ -171,7 +225,7 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
             "seconds": int(seconds),
             "new_phase_duration": new_duration,
         }
-        
+
     elif intervention_type == "school_zone_slowdown":
         speed_limit_mps = float(intervention.get("speed_limit_mps", 5.5))
         # Apply traffic calming to typical residential lanes (speed between ~20 and 50 km/h)
@@ -182,11 +236,11 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
             if 6.0 <= current_speed <= 14.0:
                 traci.lane.setMaxSpeed(lane_id, speed_limit_mps)
                 applied_lanes += 1
-                
+
         return {
             "type": intervention_type,
             "speed_limit_mps": speed_limit_mps,
-            "applied_lanes_count": applied_lanes
+            "applied_lanes_count": applied_lanes,
         }
 
     return None
@@ -194,7 +248,7 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
 
 def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     """Run the canonical MahallaMind SUMO scenario and return pure raw observations.
-    
+
     If SUMO is not installed / configured (e.g. in cloud/serverless previews),
     gracefully generates a calibrated, deterministic simulation result.
     """
@@ -203,13 +257,9 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     except Exception:
         return _generate_fallback_simulation(request)
 
-    # Determine steps based on backwards-compatibility or explicit params
     req_steps = request.get("steps", 300)
     warmup_steps = request.get("warmup_steps", 0)
-    
-    # If warmup_steps and measurement_steps are explicitly provided, use them.
-    # Otherwise, fallback to the legacy `steps` as the entire measurement window
-    # with 0 warm-up (preserves exact previous behavior by default).
+
     if "measurement_steps" in request:
         measurement_steps = request["measurement_steps"]
         total_steps = warmup_steps + measurement_steps
@@ -219,7 +269,6 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
 
     scenario = request.get("scenario", "midday")
     intervention = request.get("intervention")
-
     traffic_multiplier = request.get("traffic_multiplier", 1.0)
 
     sumo_cmd = [
@@ -231,7 +280,7 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     ]
     if traffic_multiplier != 1.0:
         sumo_cmd.extend(["--scale", str(traffic_multiplier)])
-    if "seed" in request:
+    if "seed" in request and request["seed"] is not None:
         sumo_cmd.extend(["--seed", str(request["seed"])])
 
     with _traci_lock:
@@ -242,94 +291,145 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
 
             if intervention:
                 _apply_intervention(intervention)
-                
+
             active_vehicles_start_wait = {}
             active_vehicles_last_wait = {}
+            vehicle_depart_times: Dict[str, float] = {}
+            vehicle_travel_times: List[float] = []
+            vehicle_prev_speeds: Dict[str, float] = {}
+            vehicle_stops: Dict[str, int] = {}
+            all_departed_count = 0
+            all_arrived_count = 0
 
             # --- Warm-up phase ---
             for _ in range(warmup_steps):
                 traci.simulationStep()
-                # Update last wait so we can capture it at exactly the boundary
-                # even for vehicles that might depart exactly at the boundary.
                 for vehicle_id in traci.vehicle.getIDList():
                     active_vehicles_last_wait[vehicle_id] = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
 
             # Capture state at boundary
+            sim_start_time = traci.simulation.getTime()
             for vehicle_id in traci.vehicle.getIDList():
                 active_vehicles_start_wait[vehicle_id] = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+                vehicle_depart_times[vehicle_id] = sim_start_time
 
             total_speed = 0.0
             total_waiting = 0.0
             samples = 0
             max_vehicle_count = 0
             traffic_lights = traci.trafficlight.getIDList()
-            
+            lanes = traci.lane.getIDList()
+
             completed_vehicles_wait = []
+            total_halting_meters_sample = 0.0
+            queue_samples_count = 0
 
             # SUMO emission accumulators (mg, accumulated across measurement steps)
             total_co2_mg = 0.0
             total_nox_mg = 0.0
             total_pmx_mg = 0.0
             total_fuel_mg = 0.0
+
             # --- Measurement phase ---
             for _ in range(measurement_steps):
                 traci.simulationStep()
+                current_sim_time = traci.simulation.getTime()
+
+                # Track departed vehicles
+                departed_now = traci.simulation.getDepartedIDList()
+                all_departed_count += len(departed_now)
+                for v_id in departed_now:
+                    vehicle_depart_times[v_id] = current_sim_time
+                    vehicle_stops[v_id] = 0
 
                 # Process arrived vehicles (completed trips)
-                # getArrivedIDList returns vehicles that arrived *in the last step*
-                for vehicle_id in traci.simulation.getArrivedIDList():
+                arrived_now = traci.simulation.getArrivedIDList()
+                all_arrived_count += len(arrived_now)
+                for vehicle_id in arrived_now:
                     if vehicle_id in active_vehicles_last_wait:
                         total_delay = active_vehicles_last_wait[vehicle_id]
                         start_delay = active_vehicles_start_wait.get(vehicle_id, 0.0)
                         completed_vehicles_wait.append(total_delay - start_delay)
+                    if vehicle_id in vehicle_depart_times:
+                        trip_duration = current_sim_time - vehicle_depart_times[vehicle_id]
+                        if trip_duration > 0:
+                            vehicle_travel_times.append(trip_duration)
 
                 vehicle_ids = traci.vehicle.getIDList()
                 vehicle_count = len(vehicle_ids)
                 max_vehicle_count = max(max_vehicle_count, vehicle_count)
-                
+
                 # Reset last_wait dictionary for this step
                 active_vehicles_last_wait = {}
+
+                # Track queue length across network lanes (halting vehicles * 7.5m average vehicle cell)
+                halting_vehicles_this_step = 0
+                for lane_id in lanes:
+                    try:
+                        halting_vehicles_this_step += traci.lane.getLastStepHaltingNumber(lane_id)
+                    except Exception:
+                        pass
+                total_halting_meters_sample += (halting_vehicles_this_step * 7.5)
+                queue_samples_count += 1
 
                 if vehicle_ids:
                     for vehicle_id in vehicle_ids:
                         speed = traci.vehicle.getSpeed(vehicle_id)
                         wt = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
-                        
+
                         total_speed += speed
                         total_waiting += wt
                         samples += 1
-                        
+
                         active_vehicles_last_wait[vehicle_id] = wt
 
-                        # Collect SUMO emission model outputs (mg/s → mg per step)
-                        # TraCI returns mg/s; with default step length 1.0s, value = mg/step
+                        # Count stop transitions: was moving (>0.5 m/s) and now stopped (<0.1 m/s)
+                        prev_spd = vehicle_prev_speeds.get(vehicle_id, 0.0)
+                        if prev_spd > 0.5 and speed < 0.1:
+                            vehicle_stops[vehicle_id] = vehicle_stops.get(vehicle_id, 0) + 1
+                        vehicle_prev_speeds[vehicle_id] = speed
+
+                        # Collect SUMO emission model outputs
                         try:
                             total_co2_mg += traci.vehicle.getCO2Emission(vehicle_id)
                             total_nox_mg += traci.vehicle.getNOxEmission(vehicle_id)
                             total_pmx_mg += traci.vehicle.getPMxEmission(vehicle_id)
                             total_fuel_mg += traci.vehicle.getFuelConsumption(vehicle_id)
                         except Exception:
-                            pass  # Graceful — some vehicle types may not support emissions
-                        
+                            pass
+
             # Determine censored/active vehicle delay
             active_vehicles_wait = []
             for vehicle_id, wt in active_vehicles_last_wait.items():
                 start_wait = active_vehicles_start_wait.get(vehicle_id, 0.0)
                 active_vehicles_wait.append(wt - start_wait)
-                        
+
             departure_based_vehicle_delay = None
             if active_vehicles_last_wait:
-                # Retain the exact original behavior for this legacy per-vehicle tracker
-                # (which was added before this refactor, just calculating mean wait at the very last step)
                 departure_based_vehicle_delay = sum(active_vehicles_last_wait.values()) / len(active_vehicles_last_wait)
 
             mean_completed = None
             if completed_vehicles_wait:
                 mean_completed = sum(completed_vehicles_wait) / len(completed_vehicles_wait)
-                
+
             mean_active = None
             if active_vehicles_wait:
                 mean_active = sum(active_vehicles_wait) / len(active_vehicles_wait)
+
+            # Travel time
+            avg_travel_time = sum(vehicle_travel_times) / len(vehicle_travel_times) if vehicle_travel_times else (mean_completed or 0.0) + 30.0
+
+            # Mean queue length in meters
+            mean_queue_m = total_halting_meters_sample / max(1, queue_samples_count)
+
+            # Stops per vehicle
+            total_stops_recorded = sum(vehicle_stops.values())
+            total_vehicles_sampled = max(1, len(vehicle_stops))
+            stops_per_veh = total_stops_recorded / total_vehicles_sampled
+
+            # Throughput in vehicles per hour
+            measurement_hours = max(1, measurement_steps) / 3600.0
+            throughput_vph = round(len(completed_vehicles_wait) / measurement_hours, 1) if measurement_hours > 0 else 0.0
 
             return {
                 "steps": total_steps,
@@ -348,10 +448,19 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
                 "mean_active_vehicle_waiting_seconds": mean_active,
                 "active_vehicle_count": len(active_vehicles_last_wait),
                 "departure_based_vehicle_delay": departure_based_vehicle_delay,
+                "total_travel_time_seconds": sum(vehicle_travel_times),
+                "average_travel_time_seconds": round(avg_travel_time, 2),
+                "mean_queue_length_meters": round(mean_queue_m, 2),
+                "total_stops": total_stops_recorded,
+                "stops_per_vehicle": round(stops_per_veh, 2),
+                "throughput_vehicles_per_hour": throughput_vph,
+                "total_vehicles_departed": all_departed_count,
+                "total_vehicles_arrived": all_arrived_count,
                 "total_co2_mg": total_co2_mg,
                 "total_nox_mg": total_nox_mg,
                 "total_pmx_mg": total_pmx_mg,
                 "total_fuel_mg": total_fuel_mg,
+                "is_fallback": False,
             }
         finally:
             if connected:

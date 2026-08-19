@@ -124,7 +124,7 @@ export function Dashboard({
       </aside>
 
       <section className="results-panel" ref={resultsRef}>
-        <RecommendationPanel t={t} language={language} selectedCandidate={selectedCandidate} onTestInExplore={onTestInExplore} />
+        <RecommendationPanel t={t} language={language} selectedCandidate={selectedCandidate} optResult={optResult} onTestInExplore={onTestInExplore} />
         <AIExplanation
           t={t}
           language={language}
