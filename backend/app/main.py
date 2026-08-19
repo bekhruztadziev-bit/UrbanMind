@@ -1,6 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
+import asyncio
+from dotenv import load_dotenv
+
+# Load .env from root and backend directory with override=True
+_root_env = Path(__file__).resolve().parents[2] / ".env"
+_backend_env = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(_root_env, override=True)
+load_dotenv(_backend_env, override=True)
+load_dotenv(override=True)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +18,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.services.ai import explain_results
 from app.services.insights import build_neighborhood_summary, describe_product_positioning
 from app.services.mahalla_data import get_mahalla_data
-import asyncio
 from app.services.simulation.service import run_metrics_workflow, run_optimization_workflow, run_scenario_workflow
 from app.services.simulation.experiment_runner import run_experiment, get_interventions_registry
 from app.services.environment.provider import get_current_observation, get_tashkent_stations

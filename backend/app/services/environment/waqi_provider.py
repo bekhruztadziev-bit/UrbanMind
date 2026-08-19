@@ -136,42 +136,43 @@ def _parse_waqi_response(data: dict) -> Optional[EnvironmentalObservation]:
 
 
 def fetch_observation(station_key: str = DEFAULT_STATION) -> Optional[EnvironmentalObservation]:
-    """Fetch current observation from WAQI for a Tashkent station.
+    """Fetch current observation from WAQI for Tashkent.
 
-    Returns None on any failure (missing token, network error, bad response).
+    Tries Chilanzar station (@14722), then city feed 'tashkent', then geo coordinates.
+    Returns None on total failure (missing token, network error, bad response).
     Never raises exceptions — all errors are logged and absorbed.
     """
     token = _get_token()
-    if not token:
-        logger.info("WAQI_API_TOKEN not set; skipping WAQI provider")
+    if not token or token == "your-waqi-api-token-here":
+        logger.info("WAQI_API_TOKEN not set or placeholder; skipping WAQI provider")
         return None
 
-    station = TASHKENT_STATIONS.get(station_key)
-    if station:
-        url = f"{WAQI_BASE_URL}/feed/{station['waqi_id']}/?token={token}"
-    else:
-        # Fallback to geo-based query
-        lat, lng = TASHKENT_CENTER
-        url = f"{WAQI_BASE_URL}/feed/geo:{lat};{lng}/?token={token}"
+    feed_endpoints = [
+        f"{WAQI_BASE_URL}/feed/@14722/?token={token}",
+        f"{WAQI_BASE_URL}/feed/tashkent/?token={token}",
+        f"{WAQI_BASE_URL}/feed/geo:41.2995;69.2401/?token={token}",
+    ]
 
-    try:
-        import httpx
+    import httpx
 
-        with httpx.Client(timeout=5.0) as client:
-            response = client.get(url)
-            response.raise_for_status()
-            data = response.json()
+    for url in feed_endpoints:
+        try:
+            with httpx.Client(timeout=8.0) as client:
+                response = client.get(url)
+                if response.status_code == 200:
+                    data = response.json()
+                    observation = _parse_waqi_response(data)
+                    if observation and (observation.aqi is not None or observation.pm25 is not None):
+                        logger.info(
+                            "WAQI observation success: station=%s aqi=%s pm25=%s quality=%s",
+                            observation.station,
+                            observation.aqi,
+                            observation.pm25,
+                            observation.data_quality,
+                        )
+                        return observation
+        except Exception as exc:
+            logger.warning("WAQI provider attempt failed for %s: %s", url, exc)
 
-        observation = _parse_waqi_response(data)
-        if observation:
-            logger.info(
-                "WAQI observation: station=%s aqi=%s quality=%s",
-                observation.station,
-                observation.aqi,
-                observation.data_quality,
-            )
-        return observation
+    return None
 
-    except Exception as exc:
-        logger.warning("WAQI provider failed: %s", exc)
-        return None

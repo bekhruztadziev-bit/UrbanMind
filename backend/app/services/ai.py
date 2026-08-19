@@ -45,13 +45,21 @@ def _fallback_explanation(baseline: dict[str, Any], candidates: list[dict[str, A
 
 
 def _provider_available() -> bool:
+    _root_env = Path(__file__).resolve().parents[3] / ".env"
+    _backend_env = Path(__file__).resolve().parents[2] / ".env"
+    if _root_env.exists():
+        load_dotenv(_root_env, override=True)
+    if _backend_env.exists():
+        load_dotenv(_backend_env, override=True)
+
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
         return False
     key = api_key.strip()
     if key in ["", "your-gemini-api-key-here", "your-google-api-key-here"]:
         return False
-    return True
+    return len(key) >= 10
+
 
 
 def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], best: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -71,7 +79,7 @@ def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], 
         return fallback
 
     api_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY", "")).strip()
-    model_name = os.getenv("AI_MODEL", "gemini-2.0-flash")
+    model_name = os.getenv("AI_MODEL", "gemini-3.6-flash")
     best_desc = best.get("description", best_name) if best else best_name
     best_delta = best.get("delta", {}) if best else {}
 
@@ -98,23 +106,44 @@ def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], 
 
     try:
         raw_text = None
-        
+        candidate_models = [model_name, "gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        # De-duplicate while preserving order
+        unique_models = list(dict.fromkeys(candidate_models))
+
         # Try google-genai first
         try:
             from google import genai as google_genai
             client = google_genai.Client(api_key=api_key)
-            response = client.models.generate_content(
-                model=model_name,
-                contents=prompt,
-            )
-            raw_text = getattr(response, "text", "") or ""
+            for m in unique_models:
+                try:
+                    response = client.models.generate_content(
+                        model=m,
+                        contents=prompt,
+                    )
+                    raw_text = getattr(response, "text", "") or ""
+                    if raw_text:
+                        break
+                except Exception:
+                    continue
         except Exception:
-            # Fall back to google.generativeai
-            import google.generativeai as legacy_genai
-            legacy_genai.configure(api_key=api_key)
-            model = legacy_genai.GenerativeModel(model_name)
-            response = model.generate_content(prompt)
-            raw_text = getattr(response, "text", "") or ""
+            pass
+
+        # Fall back to google.generativeai if needed
+        if not raw_text:
+            try:
+                import google.generativeai as legacy_genai
+                legacy_genai.configure(api_key=api_key)
+                for m in unique_models:
+                    try:
+                        model = legacy_genai.GenerativeModel(m)
+                        response = model.generate_content(prompt)
+                        raw_text = getattr(response, "text", "") or ""
+                        if raw_text:
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
 
         if not raw_text:
             raise RuntimeError("Empty response from AI provider")

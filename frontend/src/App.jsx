@@ -11,6 +11,7 @@ import { Dashboard } from './components/Dashboard/Dashboard'
 import { FAQ } from './components/FAQ/FAQ'
 import { ExperimentsPage } from './components/Experiments/ExperimentsPage'
 import { HistoryPage } from './components/History/HistoryPage'
+import { AmbientBackground } from './components/Common/AmbientBackground'
 import './App.css'
 
 const fallbackDistrict = {
@@ -124,80 +125,99 @@ function App() {
   }
 
   if (!mahalla) {
-    return <div className="app-shell loading">{t.appTitle ? `${t.appTitle}...` : 'Loading UrbanMind…'}</div>
+    return (
+      <>
+        <AmbientBackground />
+        <div className="app-shell loading">{t.appTitle ? `${t.appTitle}...` : 'Loading UrbanMind…'}</div>
+      </>
+    )
   }
 
   if (currentView === 'faq') {
-    return <FAQ t={t} setCurrentView={setCurrentView} toggleLanguage={toggleLanguage} />
+    return (
+      <>
+        <AmbientBackground />
+        <FAQ t={t} setCurrentView={setCurrentView} toggleLanguage={toggleLanguage} />
+      </>
+    )
   }
 
   if (currentView === 'explore') {
     return (
-      <ExperimentsPage
-        t={t}
-        setCurrentView={setCurrentView}
-        toggleLanguage={toggleLanguage}
-        experiment={experiment}
-        experimentHistory={experimentHistory}
-        presentationMode={presentationMode}
-      />
+      <>
+        <AmbientBackground />
+        <ExperimentsPage
+          t={t}
+          setCurrentView={setCurrentView}
+          toggleLanguage={toggleLanguage}
+          experiment={experiment}
+          experimentHistory={experimentHistory}
+          presentationMode={presentationMode}
+        />
+      </>
     )
   }
 
   if (currentView === 'history') {
     return (
-      <HistoryPage
-        t={t}
-        setCurrentView={setCurrentView}
-        toggleLanguage={toggleLanguage}
-        experimentHistory={experimentHistory}
-        setDisplayedResult={experiment.setDisplayedResult}
-      />
+      <>
+        <AmbientBackground />
+        <HistoryPage
+          t={t}
+          setCurrentView={setCurrentView}
+          toggleLanguage={toggleLanguage}
+          experimentHistory={experimentHistory}
+          setDisplayedResult={experiment.setDisplayedResult}
+        />
+      </>
     )
   }
 
   return (
-    <div className="app-shell">
-      <div className="map-panel">
-        <Header 
+    <>
+      <AmbientBackground />
+      <div className="app-shell">
+        <div className="map-panel">
+          <Header 
+            t={t}
+            currentView={currentView} 
+            setCurrentView={setCurrentView} 
+            toggleLanguage={toggleLanguage} 
+          />
+          <MapView
+            mahalla={mahalla}
+            selectedId={selectedId}
+            setSelectedId={setSelectedId}
+            language={language}
+          />
+        </div>
+
+        <Dashboard
           t={t}
-          currentView={currentView} 
-          setCurrentView={setCurrentView} 
-          toggleLanguage={toggleLanguage} 
-        />
-        <MapView
-          mahalla={mahalla}
-          selectedId={selectedId}
-          setSelectedId={setSelectedId}
           language={language}
+          selectedIntersection={selectedIntersection}
+          targetSignalId={targetSignalId}
+          metrics={metrics}
+          optResult={optResult}
+          selectedCandidate={selectedCandidate}
+          setSelectedCandidateId={setSelectedCandidateId}
+          getIntersectionForTrafficLight={getIntersectionForTrafficLight}
+          setSelectedId={setSelectedId}
+          handleAnalyze={handleAnalyze}
+          handleOptimize={() => handleOptimize((data) => {
+            setSelectedId('intersection_1')
+          })}
+          aiState={aiState}
+          aiData={aiData}
+          aiError={aiError}
+          handleRunAIExplanation={handleRunAIExplanation}
+          loading={optLoading}
+          error={globalError || optError}
+          setCurrentView={setCurrentView}
+          onTestInExplore={handleTestInExplore}
         />
       </div>
-
-      <Dashboard
-        t={t}
-        language={language}
-        selectedIntersection={selectedIntersection}
-        targetSignalId={targetSignalId}
-        metrics={metrics}
-        optResult={optResult}
-        selectedCandidate={selectedCandidate}
-        setSelectedCandidateId={setSelectedCandidateId}
-        getIntersectionForTrafficLight={getIntersectionForTrafficLight}
-        setSelectedId={setSelectedId}
-        handleAnalyze={handleAnalyze}
-        handleOptimize={() => handleOptimize((data) => {
-          setSelectedId('intersection_1')
-        })}
-        aiState={aiState}
-        aiData={aiData}
-        aiError={aiError}
-        handleRunAIExplanation={handleRunAIExplanation}
-        loading={optLoading}
-        error={globalError || optError}
-        setCurrentView={setCurrentView}
-        onTestInExplore={handleTestInExplore}
-      />
-    </div>
+    </>
   )
 }
 

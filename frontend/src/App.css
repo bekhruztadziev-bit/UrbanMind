@@ -1,4 +1,127 @@
+/* ── Ambient Digital Twin Background Animation ────────────────────────── */
+.ambient-background-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 20%, #172554 0%, #0f172a 55%, #090d16 100%);
+}
+
+.ambient-grid-overlay {
+  position: absolute;
+  inset: -100px;
+  background-image: 
+    linear-gradient(to right, rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.15) 75%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.15) 75%, transparent 100%);
+  animation: ambientGridDrift 45s linear infinite;
+}
+
+@keyframes ambientGridDrift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+
+.ambient-radar-beam {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(59, 130, 246, 0.03) 60deg, transparent 90deg);
+  animation: ambientRadarSweep 28s linear infinite;
+}
+
+@keyframes ambientRadarSweep {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ambient-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Map Markers & Micro-Animations ──────────────────────────────────── */
+.intersection-marker-wrap {
+  background: transparent;
+  border: none;
+}
+
+.intersection-marker {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.intersection-marker:hover {
+  transform: scale(1.35);
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.9);
+}
+
+.intersection-marker.active {
+  background: #60a5fa;
+  animation: markerPulseRing 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@keyframes markerPulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7), 0 0 10px rgba(59, 130, 246, 0.8);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0), 0 0 16px rgba(59, 130, 246, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0), 0 0 10px rgba(59, 130, 246, 0.8);
+  }
+}
+
+.station-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1.5px solid #10b981;
+  color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  animation: stationBeaconPulse 3.5s ease-in-out infinite;
+}
+
+.station-marker:hover {
+  transform: scale(1.25);
+  background: rgba(16, 185, 129, 0.35);
+}
+
+@keyframes stationBeaconPulse {
+  0%, 100% {
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.7);
+  }
+}
+
 .app-shell {
+  position: relative;
+  z-index: 1;
   display: grid;
   /* Map takes ~65% of viewport width, side panel ~35% */
   grid-template-columns: minmax(0, 6.5fr) minmax(320px, 3.5fr);
@@ -6,7 +129,7 @@
   padding: 1.1rem;
   max-width: 1600px;
   margin: 0 auto;
-  background: var(--bg-base);
+  background: transparent;
   min-height: 100vh;
 }
 
