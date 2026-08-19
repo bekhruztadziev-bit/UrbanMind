@@ -105,18 +105,6 @@ def get_current_observation() -> EnvironmentalObservation:
     Priority: cached (if fresh) → WAQI → IQAir → stale cache → UNAVAILABLE.
     Thread-safe. Never raises.
     """
-    global _cached_observation, _cache_timestamp
-
-    from pathlib import Path
-    from dotenv import load_dotenv
-
-    _root_env = Path(__file__).resolve().parents[3] / ".env"
-    _backend_env = Path(__file__).resolve().parents[2] / ".env"
-    if _root_env.exists():
-        load_dotenv(_root_env, override=True)
-    if _backend_env.exists():
-        load_dotenv(_backend_env, override=True)
-
     with _cache_lock:
         if _is_cache_valid():
             return _cached_observation  # type: ignore[return-value]

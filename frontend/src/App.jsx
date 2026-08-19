@@ -72,7 +72,7 @@ function App() {
     handleRunAIExplanation,
     handleAnalyze,
     handleOptimize
-  } = useOptimization(mahalla, scenario)
+  } = useOptimization(mahalla, scenario, language)
 
   const experiment = useExperiment()
   const experimentHistory = useExperimentHistory()

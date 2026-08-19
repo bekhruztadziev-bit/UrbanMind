@@ -46,20 +46,28 @@ def test_optimize_endpoint_returns_candidates_and_best():
 
 
 def test_optimize_handles_ai_unavailable_fallback():
-    previous = os.environ.get("GEMINI_API_KEY")
-    os.environ.pop("GEMINI_API_KEY", None)
+    previous_gemini = os.environ.get("GEMINI_API_KEY")
+    previous_google = os.environ.get("GOOGLE_API_KEY")
+    os.environ["GEMINI_API_KEY"] = ""
+    os.environ["GOOGLE_API_KEY"] = ""
     try:
         response = client.post("/api/optimize")
         assert response.status_code == 200, response.text
         payload = response.json()
         assert "ai" in payload
         ai = payload["ai"]
-        assert "AI analysis unavailable" in ai["recommendation"] or "AI analysis unavailable" in ai["reasoning"]
+        assert "AI analysis unavailable" in ai["recommendation"] or "AI analysis unavailable" in ai["reasoning"] or "ИИ-анализ недоступен" in ai["recommendation"]
         assert "signal_focus" in ai
         assert "best_signal_id" in ai
     finally:
-        if previous is not None:
-            os.environ["GEMINI_API_KEY"] = previous
+        if previous_gemini is not None:
+            os.environ["GEMINI_API_KEY"] = previous_gemini
+        else:
+            os.environ.pop("GEMINI_API_KEY", None)
+        if previous_google is not None:
+            os.environ["GOOGLE_API_KEY"] = previous_google
+        else:
+            os.environ.pop("GOOGLE_API_KEY", None)
 
 
 def test_optimize_explanation_contains_signal_specific_reasoning():

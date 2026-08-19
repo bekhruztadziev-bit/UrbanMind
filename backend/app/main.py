@@ -81,12 +81,14 @@ async def optimize(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     warmup_steps = int(body.get("warmup_steps", 0))
     measurement_steps = int(body.get("measurement_steps", steps))
     scenario = str(body.get("scenario", "midday"))
+    language = str(body.get("language", "en"))
     try:
         result = await asyncio.to_thread(run_optimization_workflow, steps, warmup_steps, measurement_steps, scenario)
         result["ai"] = explain_results(
             result.get("baseline", {}),
             result.get("candidates", []),
             result.get("best_candidate"),
+            language=language,
         )
         result["insights"] = build_neighborhood_summary(
             result.get("baseline", {}),
@@ -108,8 +110,9 @@ async def explain_optimization(payload: dict[str, Any] | None = None) -> dict[st
     baseline = body.get("baseline", {})
     candidates = body.get("candidates", [])
     best_candidate = body.get("best_candidate")
+    language = str(body.get("language", "en"))
     try:
-        explanation = await asyncio.to_thread(explain_results, baseline, candidates, best_candidate)
+        explanation = await asyncio.to_thread(explain_results, baseline, candidates, best_candidate, language=language)
         return explanation
     except Exception as exc:
         raise HTTPException(

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { fetchMetrics, fetchOptimize, fetchAIExplanation } from '../api/client'
 
 const defaultMetrics = {
@@ -8,7 +8,7 @@ const defaultMetrics = {
   traffic_light_count: 0,
 }
 
-export function useOptimization(mahalla, scenario) {
+export function useOptimization(mahalla, scenario, language = 'en') {
   const [metrics, setMetrics] = useState(defaultMetrics)
   const [optResult, setOptResult] = useState(null)
   const [selectedCandidateId, setSelectedCandidateId] = useState(null)
@@ -19,12 +19,13 @@ export function useOptimization(mahalla, scenario) {
   const [aiState, setAiState] = useState('READY')
   const [aiData, setAiData] = useState(null)
   const [aiError, setAiError] = useState('')
+  const prevLangRef = useRef(language)
 
   const handleAnalyze = async () => {
     setLoading(true)
     setOptError('')
     try {
-      const data = await fetchMetrics({ steps: 300, scenario })
+      const data = await fetchMetrics({ steps: 300, scenario, language })
       setMetrics(data)
       setOptResult(null)
       setSelectedCandidateId(null)
@@ -41,7 +42,7 @@ export function useOptimization(mahalla, scenario) {
     setLoading(true)
     setOptError('')
     try {
-      const data = await fetchOptimize({ steps: 300, scenario })
+      const data = await fetchOptimize({ steps: 300, scenario, language })
       setOptResult(data)
       setMetrics(data.baseline)
       setSelectedCandidateId(data.best_candidate?.id || null)
@@ -59,7 +60,7 @@ export function useOptimization(mahalla, scenario) {
     }
   }
 
-  const handleRunAIExplanation = async () => {
+  const handleRunAIExplanation = async (targetLang = language) => {
     if (!optResult) return
     setAiState('ANALYZING')
     setAiError('')
@@ -68,6 +69,7 @@ export function useOptimization(mahalla, scenario) {
         baseline: optResult.baseline || metrics,
         candidates: optResult.ranked_candidates || optResult.candidates || [],
         best_candidate: selectedCandidate || optResult.best_candidate,
+        language: targetLang,
       })
       setAiData(explanation)
       setAiState(explanation.status === 'FALLBACK' ? 'FALLBACK' : 'COMPLETE')
@@ -76,6 +78,16 @@ export function useOptimization(mahalla, scenario) {
       setAiState('ERROR')
     }
   }
+
+  // When language switches (e.g. EN <-> RU), dynamically re-evaluate AI explanation if an optimization result exists
+  useEffect(() => {
+    if (prevLangRef.current !== language) {
+      prevLangRef.current = language
+      if (optResult && (aiData || optResult.ai)) {
+        handleRunAIExplanation(language)
+      }
+    }
+  }, [language, optResult])
 
   const selectedCandidate = useMemo(() => {
     if (!optResult) return null

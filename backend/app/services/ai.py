@@ -11,9 +11,40 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(PROJECT_ROOT / ".env")
 
 
-def _fallback_explanation(baseline: dict[str, Any], candidates: list[dict[str, Any]], best: dict[str, Any] | None = None) -> dict[str, Any]:
+def _fallback_explanation(baseline: dict[str, Any], candidates: list[dict[str, Any]], best: dict[str, Any] | None = None, language: str = "en") -> dict[str, Any]:
     best_name = best.get("id", "best intervention") if best else "best intervention"
     signal_id = (best or {}).get("intervention", {}).get("traffic_light_id") if best else None
+    
+    if language == "ru":
+        signal_focus = (
+            f"Фокус сигнала: {signal_id}. Рекомендация нацелена на наиболее загруженный узел для сокращения очередей и уменьшения задержек по всему коридору района."
+            if signal_id
+            else "Фокус сигнала: наиболее эффективное вмешательство на смоделированном коридоре, балансирующее мобильность и доступность района."
+        )
+        return {
+            "status": "FALLBACK",
+            "provider": "deterministic_fallback",
+            "provenance": "АНАЛИТИЧЕСКАЯ ИНТЕРПРЕТАЦИЯ",
+            "recommendation": (
+                f"ИИ-анализ недоступен; рекомендация основана на метриках симуляции для {signal_id or 'выбранного светофора'} и оптимизирована по задержкам, выбросам, доступности и безопасности."
+            ),
+            "reasoning": (
+                f"Детерминированная симуляция сравнила базовый сценарий с {len(candidates)} кандидатами вмешательства. "
+                f"Выбранная рекомендация: {best_name}, так как измеренные показатели оказались наилучшими по времени поездки, очередям, выбросам и доступу пешеходов. "
+                f"{signal_focus}"
+            ),
+            "tradeoffs": [
+                "Рекомендация на основе симуляции не имеет натурной полевой валидации.",
+                "Некоторые меры улучшают транспортный поток, тогда как другие повышают безопасность или снижают выбросы; итоговый план является балансом, а не максимизацией скорости.",
+                "Фактический операционный эффект должен быть подтвержден наблюдениями на месте.",
+            ],
+            "confidence": "low",
+            "signal_focus": signal_focus,
+            "best_signal_id": signal_id,
+            "scope": "Многокритериальная оптимизация района по показателям мобильности, выбросов и доступности.",
+            "expected_impact": "Ожидается значительное улучшение коридора: снижение задержек, уменьшение очередей, снижение выбросов и более безопасный доступ для пешеходов и локальных поездок.",
+        }
+
     signal_focus = (
         f"Signal focus: {signal_id}. The recommendation targets the busiest junction cluster to reduce queue spillback and shorten delay across the neighborhood corridor."
         if signal_id
@@ -45,13 +76,6 @@ def _fallback_explanation(baseline: dict[str, Any], candidates: list[dict[str, A
 
 
 def _provider_available() -> bool:
-    _root_env = Path(__file__).resolve().parents[3] / ".env"
-    _backend_env = Path(__file__).resolve().parents[2] / ".env"
-    if _root_env.exists():
-        load_dotenv(_root_env, override=True)
-    if _backend_env.exists():
-        load_dotenv(_backend_env, override=True)
-
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not api_key:
         return False
@@ -62,19 +86,15 @@ def _provider_available() -> bool:
 
 
 
-def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], best: dict[str, Any] | None = None) -> dict[str, Any]:
+def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], best: dict[str, Any] | None = None, language: str = "en") -> dict[str, Any]:
     best_name = best.get("id", "best intervention") if best else "best intervention"
     signal_id = (best or {}).get("intervention", {}).get("traffic_light_id") if best else None
     baseline_wait = float(baseline.get("average_waiting_seconds", 0) or 0)
     baseline_speed = float(baseline.get("average_speed_kmh", 0) or 0)
     best_wait = float(best.get("metrics", {}).get("average_waiting_seconds", baseline_wait) if best else baseline_wait) or baseline_wait
     best_speed = float(best.get("metrics", {}).get("average_speed_kmh", baseline_speed) if best else baseline_speed) or baseline_speed
-    signal_focus = (
-        f"Signal focus: {signal_id}. The chosen intervention targets the most congested junction cluster in the corridor, where queues build fastest and waiting times are most sensitive to phase length and access changes."
-        if signal_id
-        else "Signal focus: the intervention with the strongest measured performance across neighborhood mobility, emissions, and access outcomes."
-    )
-    fallback = _fallback_explanation(baseline, candidates, best)
+    
+    fallback = _fallback_explanation(baseline, candidates, best, language=language)
     if not _provider_available():
         return fallback
 
@@ -83,9 +103,16 @@ def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], 
     best_desc = best.get("description", best_name) if best else best_name
     best_delta = best.get("delta", {}) if best else {}
 
+    lang_instruction = (
+        "CRITICAL: ALL string fields in the returned JSON must be written in professional Russian (на грамотном русском языке)."
+        if language == "ru"
+        else "All string fields in the returned JSON must be written in English."
+    )
+
     prompt = (
         "You are an urban mobility intelligence AI interpreting traffic simulation results. "
         "Strictly return valid JSON only (no markdown, no backticks). "
+        f"{lang_instruction}\n"
         "JSON structure: {\n"
         '  "recommendation": "string (mention this is based on simulation, not live field measurement)",\n'
         '  "reasoning": "string with detailed explanation of why this intervention was selected",\n'
@@ -166,16 +193,18 @@ def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], 
             return {
                 "status": "COMPLETE",
                 "provider": "gemini",
-                "provenance": "ANALYTICAL INTERPRETATION",
+                "provenance": "АНАЛИТИЧЕСКАЯ ИНТЕРПРЕТАЦИЯ" if language == "ru" else "ANALYTICAL INTERPRETATION",
                 "recommendation": str(payload.get("recommendation") or fallback["recommendation"]),
                 "reasoning": str(payload.get("reasoning") or fallback["reasoning"]),
                 "tradeoffs": tradeoffs,
                 "confidence": str(payload.get("confidence") or "medium"),
-                "signal_focus": str(payload.get("signal_focus") or signal_focus),
+                "signal_focus": str(payload.get("signal_focus") or fallback["signal_focus"]),
                 "best_signal_id": signal_id,
                 "scope": str(payload.get("scope") or fallback["scope"]),
                 "expected_impact": str(payload.get("expected_impact") or fallback["expected_impact"]),
             }
+        return fallback
+    except Exception:
         return fallback
     except Exception:
         return fallback
