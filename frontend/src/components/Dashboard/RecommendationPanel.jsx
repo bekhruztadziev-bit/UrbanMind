@@ -1,8 +1,29 @@
 import React from 'react'
 
+const CATEGORY_MAP_RU = {
+  signal_timing: 'настройка сигналов',
+  transit: 'общественный транспорт',
+  active_mobility: 'активная мобильность',
+  safety: 'безопасность',
+  curb_management: 'управление парковкой',
+  mobility: 'мобильность',
+}
+
+const CATEGORY_MAP_EN = {
+  signal_timing: 'signal timing',
+  transit: 'transit',
+  active_mobility: 'active mobility',
+  safety: 'safety',
+  curb_management: 'curb management',
+  mobility: 'mobility',
+}
+
 export function RecommendationPanel({ t, selectedCandidate, language, onTestInExplore }) {
+  const isRu = language === 'ru'
   const isSimulated = selectedCandidate?.evaluation_mode === 'SIMULATED'
-  const modeLabel = isSimulated ? 'SIMULATED' : 'ESTIMATED'
+  const modeLabel = isSimulated
+    ? (isRu ? 'СМОДЕЛИРОВАНО' : 'SIMULATED')
+    : (isRu ? 'ОЦЕНЕНО' : 'ESTIMATED')
 
   const formatDelta = (val, suffix = '') => {
     if (val === undefined || val === null || isNaN(val)) return '0.00' + suffix
@@ -10,6 +31,22 @@ export function RecommendationPanel({ t, selectedCandidate, language, onTestInEx
     const sign = num > 0 ? '+' : ''
     return `${sign}${num.toFixed(2)}${suffix}`
   }
+
+  const categoryName = isRu
+    ? (CATEGORY_MAP_RU[selectedCandidate?.category] || selectedCandidate?.category || 'мобильность')
+    : (CATEGORY_MAP_EN[selectedCandidate?.category] || selectedCandidate?.category || 'mobility')
+
+  const label = isRu
+    ? (selectedCandidate?.label_ru || selectedCandidate?.label || selectedCandidate?.id)
+    : (selectedCandidate?.label_en || selectedCandidate?.label || selectedCandidate?.id)
+
+  const summary = isRu
+    ? (selectedCandidate?.summary_ru || selectedCandidate?.summary || selectedCandidate?.description)
+    : (selectedCandidate?.summary_en || selectedCandidate?.summary || selectedCandidate?.description)
+
+  const reason = isRu
+    ? (selectedCandidate?.selected_reason_ru || selectedCandidate?.selected_reason)
+    : selectedCandidate?.selected_reason
 
   return (
     <div className="panel-card">
@@ -25,12 +62,14 @@ export function RecommendationPanel({ t, selectedCandidate, language, onTestInEx
       {selectedCandidate ? (
         <>
           <p className="recommendation-tag">
-            {selectedCandidate.label || selectedCandidate.id}
+            {label}
           </p>
-          <p className="traffic-legend muted">{selectedCandidate.category || 'mobility'} {language === 'ru' ? 'вмешательство' : 'intervention'}</p>
-          <p style={{ marginTop: '0.4rem', color: 'var(--text-primary)' }}>{selectedCandidate.summary || selectedCandidate.description}</p>
-          {selectedCandidate.selected_reason && (
-            <p className="selection-reason">{selectedCandidate.selected_reason}</p>
+          <p className="traffic-legend muted">
+            {isRu ? `Мера: ${categoryName}` : `${categoryName} intervention`}
+          </p>
+          <p style={{ marginTop: '0.4rem', color: 'var(--text-primary)' }}>{summary}</p>
+          {reason && (
+            <p className="selection-reason">{reason}</p>
           )}
           <div className="two-col mt-3">
             <div><span>{t.speed || 'Speed'}</span><strong>{selectedCandidate.metrics.average_speed_kmh.toFixed(2)} km/h</strong></div>
@@ -46,7 +85,7 @@ export function RecommendationPanel({ t, selectedCandidate, language, onTestInEx
             style={{ marginTop: '1.1rem', fontSize: '0.85rem', width: '100%', justifyContent: 'center' }}
             onClick={() => onTestInExplore(selectedCandidate)}
           >
-            {language === 'ru' ? 'Тестировать в Среде анализа →' : 'Test in Explore Workspace →'}
+            {isRu ? 'Тестировать в Среде анализа →' : 'Test in Explore Workspace →'}
           </button>
         </>
       ) : (

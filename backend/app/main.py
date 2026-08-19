@@ -22,7 +22,7 @@ from app.services.simulation.service import run_metrics_workflow, run_optimizati
 from app.services.simulation.experiment_runner import run_experiment, get_interventions_registry
 from app.services.environment.provider import get_current_observation, get_tashkent_stations
 
-app = FastAPI(title="MahallaMind API")
+app = FastAPI(title="UrbanMind API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,16 +36,16 @@ app.add_middleware(
 @app.get("/")
 async def root() -> dict[str, Any]:
     return {
-        "message": "MahallaMind API",
+        "message": "UrbanMind API",
         "status": "running",
-        "product_name": "MahallaMind",
+        "product_name": "UrbanMind",
         "category": "Neighborhood Mobility Intelligence",
     }
 
 
 @app.get("/api/health")
 async def health() -> dict[str, Any]:
-    return {"ok": True, "product_name": "MahallaMind", "category": "Neighborhood Mobility Intelligence"}
+    return {"ok": True, "product_name": "UrbanMind", "category": "Neighborhood Mobility Intelligence"}
 
 
 @app.get("/api/summary")
@@ -83,7 +83,7 @@ async def optimize(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     scenario = str(body.get("scenario", "midday"))
     language = str(body.get("language", "en"))
     try:
-        result = await asyncio.to_thread(run_optimization_workflow, steps, warmup_steps, measurement_steps, scenario)
+        result = await asyncio.to_thread(run_optimization_workflow, steps, warmup_steps, measurement_steps, scenario, language=language)
         result["ai"] = explain_results(
             result.get("baseline", {}),
             result.get("candidates", []),
@@ -93,8 +93,9 @@ async def optimize(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         result["insights"] = build_neighborhood_summary(
             result.get("baseline", {}),
             result.get("best_candidate"),
+            language=language,
         )
-        result["product_positioning"] = describe_product_positioning()
+        result["product_positioning"] = describe_product_positioning(language=language)
         return result
     except Exception as exc:
         raise HTTPException(

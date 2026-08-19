@@ -113,6 +113,7 @@ export function Dashboard({
         <RecommendationPanel t={t} language={language} selectedCandidate={selectedCandidate} onTestInExplore={onTestInExplore} />
         <AIExplanation
           t={t}
+          language={language}
           optResult={optResult}
           aiState={aiState}
           aiData={aiData}
@@ -121,6 +122,7 @@ export function Dashboard({
         />
         <CandidateList
           t={t}
+          language={language}
           optResult={optResult}
           selectedCandidate={selectedCandidate}
           setSelectedCandidateId={setSelectedCandidateId}

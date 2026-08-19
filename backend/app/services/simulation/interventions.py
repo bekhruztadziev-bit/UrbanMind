@@ -1,5 +1,23 @@
 from typing import Any, List
 
+INTERVENTION_LABELS_RU = {
+    "Extend main green phase": "Продление основной зеленой фазы",
+    "Reduce competing phase": "Сокращение конкурирующей фазы",
+    "Bus-priority corridor": "Коридор с приоритетом автобусов",
+    "Pedestrian priority window": "Окно приоритета пешеходов",
+    "School-zone speed calming": "Успокоение трафика в школьной зоне",
+    "Short-stay curb rotation": "Ротация парковки короткого пребывания",
+}
+
+INTERVENTION_CATEGORIES_RU = {
+    "signal_timing": "настройка сигналов",
+    "transit": "общественный транспорт",
+    "active_mobility": "активная мобильность",
+    "safety": "безопасность",
+    "curb_management": "управление парковкой",
+    "mobility": "мобильность",
+}
+
 def get_candidate_interventions(signal_id: str, phase_index: int) -> List[dict[str, Any]]:
     """
     Returns the canonical registry of the currently implemented intervention candidates.
@@ -15,7 +33,22 @@ def get_candidate_interventions(signal_id: str, phase_index: int) -> List[dict[s
         {"type": "parking_turnover", "category": "curb_management", "label": "Short-stay curb rotation", "seconds": 10, "evaluation_mode": "HEURISTIC"},
     ]
 
-def get_intervention_effect_summary(category: str, action_text: str, wait_change: float) -> str:
+def get_intervention_effect_summary(category: str, action_text: str, wait_change: float, language: str = "en") -> str:
+    if language == "ru":
+        effect_map_ru = {
+            "signal_timing": "Данная мера перераспределяет время фаз для сокращения очередей и ускорения пропуска транспорта на самом загруженном узле.",
+            "transit": "Данная мера отдает приоритет автобусному коридору и улучшает доступность общественного транспорта без блокировки локальной сети.",
+            "active_mobility": "Данная мера обеспечивает пешеходам и школьникам более безопасный и предсказуемый интервал перехода.",
+            "safety": "Данная мера снижает риски в наиболее уязвимой зоне района за счет успокоения движения и улучшения видимости.",
+            "curb_management": "Данная мера улучшает оборачиваемость парковочных мест и снижает помехи от маневров у местных точек притяжения.",
+        }
+        effect = effect_map_ru.get(category, "Данная мера изменяет условия движения в районе, улучшая локальную мобильность и доступность.")
+        action_ru = INTERVENTION_LABELS_RU.get(action_text, action_text)
+        return (
+            f"{action_ru}: {effect} "
+            f"Ожидаемое влияние на ожидание: {wait_change:.2f} с по сравнению с базовым сценарием, с учетом локального доступа и экологических факторов."
+        )
+
     effect_map = {
         "signal_timing": "This intervention reallocates signal time to reduce queues and smooth discharge through the busiest junction.",
         "transit": "This intervention prioritizes the bus corridor and improves access for public transport without fully blocking the local network.",

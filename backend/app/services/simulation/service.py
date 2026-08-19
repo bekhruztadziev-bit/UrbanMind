@@ -18,7 +18,7 @@ def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_st
     metrics = calculate_metrics(raw_result)
     return metrics
 
-def run_optimization_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday") -> OptimizationResult:
+def run_optimization_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", language: str = "en") -> OptimizationResult:
     """Orchestrates the baseline run, intervention runs, estimation, and ranking."""
     # 1. Baseline
     baseline_metrics = run_metrics_workflow(steps, warmup_steps, measurement_steps, scenario)
@@ -38,8 +38,8 @@ def run_optimization_workflow(steps: int = 300, warmup_steps: int = 0, measureme
         
         
     # 4. Assemble and Rank
-    evaluated_candidates = evaluate_candidates(baseline_metrics, candidate_results_tuples)
-    return rank_candidates(scenario, baseline_metrics, evaluated_candidates)
+    evaluated_candidates = evaluate_candidates(baseline_metrics, candidate_results_tuples, language=language)
+    return rank_candidates(scenario, baseline_metrics, evaluated_candidates, language=language)
 
 
 def run_scenario_workflow(request: dict[str, Any]) -> dict[str, Any]:

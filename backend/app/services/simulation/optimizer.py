@@ -1,7 +1,7 @@
 from typing import Any, List, Tuple
 
 from app.services.simulation.models import SimulationMetrics, CandidateResult, OptimizationResult
-from app.services.simulation.interventions import get_intervention_effect_summary
+from app.services.simulation.interventions import get_intervention_effect_summary, INTERVENTION_LABELS_RU, INTERVENTION_CATEGORIES_RU
 
 
 def _candidate_score(metrics: SimulationMetrics) -> float:
@@ -14,7 +14,7 @@ def _candidate_score(metrics: SimulationMetrics) -> float:
     return (waiting * 0.55) - (speed * 0.18) + (co2 * 0.22) + (pedestrian_delay * 0.1) - (access * 0.15)
 
 
-def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tuple[dict[str, Any], SimulationMetrics]]) -> List[CandidateResult]:
+def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tuple[dict[str, Any], SimulationMetrics]], language: str = "en") -> List[CandidateResult]:
     candidates = []
     for entry, metrics in candidate_results:
         delta = {
@@ -33,7 +33,8 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
         category = entry.get("category", "mobility")
         action_text = entry.get("label", entry.get("type", "unknown").replace("_", " ").title())
         wait_change = abs(delta["average_waiting_seconds"])
-        summary = get_intervention_effect_summary(category, action_text, wait_change)
+        summary = get_intervention_effect_summary(category, action_text, wait_change, language=language)
+        label_display = INTERVENTION_LABELS_RU.get(action_text, action_text) if language == "ru" else action_text
 
         # Create a clean intervention def to return
         clean_intervention = {
@@ -46,8 +47,11 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
 
         candidate: CandidateResult = {
             "id": f"{entry.get('type')}_{entry.get('seconds', 0)}s_{category}",
-            "label": action_text,
+            "label": label_display,
+            "label_en": action_text,
+            "label_ru": INTERVENTION_LABELS_RU.get(action_text, action_text),
             "category": category,
+            "category_label": INTERVENTION_CATEGORIES_RU.get(category, category) if language == "ru" else category,
             "type": entry.get("type", ""),
             "description": summary,
             "summary": summary,
@@ -60,12 +64,17 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
     return candidates
 
 
-def rank_candidates(scenario: str, baseline: SimulationMetrics, candidates: List[CandidateResult]) -> OptimizationResult:
+def rank_candidates(scenario: str, baseline: SimulationMetrics, candidates: List[CandidateResult], language: str = "en") -> OptimizationResult:
     ranked = sorted(candidates, key=lambda item: (item["score"], item["metrics"]["average_waiting_seconds"], -item["metrics"]["average_speed_kmh"]))
     best = ranked[0]
-    best["selected_reason"] = (
-        "Selected because it balances delay, emissions, and accessibility across the neighborhood instead of optimizing only for a single junction."
-    )
+    if language == "ru":
+        best["selected_reason"] = (
+            "Выбрано, так как обеспечивает баланс между задержками, выбросами и доступностью по всему району, а не только на отдельном перекрестке."
+        )
+    else:
+        best["selected_reason"] = (
+            "Selected because it balances delay, emissions, and accessibility across the neighborhood instead of optimizing only for a single junction."
+        )
 
     return {
         "scenario": scenario,

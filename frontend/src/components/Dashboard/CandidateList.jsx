@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { animateEnter, staggerEnter, animateHighlight } from '../../utils/motion'
 
-export function CandidateList({ t, optResult, selectedCandidate, setSelectedCandidateId, getIntersectionForTrafficLight, setSelectedId }) {
+export function CandidateList({ t, optResult, selectedCandidate, setSelectedCandidateId, getIntersectionForTrafficLight, setSelectedId, language = 'en' }) {
+  const isRu = language === 'ru'
   const containerRef = useRef(null)
   const listRef = useRef(null)
 
@@ -46,31 +47,43 @@ export function CandidateList({ t, optResult, selectedCandidate, setSelectedCand
       {renderHeader()}
       <div className="candidate-list" ref={listRef}>
         {optResult?.ranked_candidates?.length ? (
-          optResult.ranked_candidates.map((candidate) => (
-            <button
-              key={candidate.id}
-              type="button"
-              className={`candidate-card ${selectedCandidate?.id === candidate.id ? 'selected' : ''}`}
-              onClick={(e) => handleCardClick(e, candidate)}
-            >
-              <div className="candidate-header">
-                <strong>{candidate.label || candidate.id}</strong>
-                <span>{candidate.score.toFixed(2)}</span>
-              </div>
-              {candidate.evaluation_mode && (
-                <span className={`provenance-badge ${candidate.evaluation_mode.toLowerCase()}`} style={{ display: 'inline-block', width: 'fit-content', marginTop: '-4px' }}>
-                  {candidate.evaluation_mode === 'HEURISTIC' ? 'ESTIMATED' : candidate.evaluation_mode}
-                </span>
-              )}
-              <p>{candidate.summary || candidate.description}</p>
-              <div className="candidate-stats">
-                <span>{t.speed || 'Speed'}: {candidate.metrics.average_speed_kmh.toFixed(2)} km/h</span>
-                <span>{t.timeLossCompleted || 'Time Loss'}: {(candidate.metrics.mean_completed_vehicle_waiting_seconds ?? candidate.metrics.average_waiting_seconds).toFixed(2)} s</span>
-                <span>Δ CO2: {(candidate.delta.sumo_co2_kg ?? candidate.delta.co2_kg ?? 0).toFixed(2)}</span>
-                <span>Δ NOx: {(candidate.delta.sumo_nox_g ?? candidate.delta.nox_g ?? 0).toFixed(2)}</span>
-              </div>
-            </button>
-          ))
+          optResult.ranked_candidates.map((candidate) => {
+            const label = isRu
+              ? (candidate.label_ru || candidate.label || candidate.id)
+              : (candidate.label_en || candidate.label || candidate.id)
+            const summary = isRu
+              ? (candidate.summary_ru || candidate.summary || candidate.description)
+              : (candidate.summary_en || candidate.summary || candidate.description)
+            const modeText = candidate.evaluation_mode === 'HEURISTIC'
+              ? (isRu ? 'ОЦЕНЕНО' : 'ESTIMATED')
+              : (isRu ? 'СМОДЕЛИРОВАНО' : candidate.evaluation_mode)
+
+            return (
+              <button
+                key={candidate.id}
+                type="button"
+                className={`candidate-card ${selectedCandidate?.id === candidate.id ? 'selected' : ''}`}
+                onClick={(e) => handleCardClick(e, candidate)}
+              >
+                <div className="candidate-header">
+                  <strong>{label}</strong>
+                  <span>{candidate.score.toFixed(2)}</span>
+                </div>
+                {candidate.evaluation_mode && (
+                  <span className={`provenance-badge ${candidate.evaluation_mode.toLowerCase()}`} style={{ display: 'inline-block', width: 'fit-content', marginTop: '-4px' }}>
+                    {modeText}
+                  </span>
+                )}
+                <p>{summary}</p>
+                <div className="candidate-stats">
+                  <span>{t.speed || 'Speed'}: {candidate.metrics.average_speed_kmh.toFixed(2)} km/h</span>
+                  <span>{t.timeLossCompleted || 'Time Loss'}: {(candidate.metrics.mean_completed_vehicle_waiting_seconds ?? candidate.metrics.average_waiting_seconds).toFixed(2)} s</span>
+                  <span>Δ CO2: {(candidate.delta.sumo_co2_kg ?? candidate.delta.co2_kg ?? 0).toFixed(2)}</span>
+                  <span>Δ NOx: {(candidate.delta.sumo_nox_g ?? candidate.delta.nox_g ?? 0).toFixed(2)}</span>
+                </div>
+              </button>
+            )
+          })
         ) : (
           <p className="traffic-legend muted">{t.runOptimization || 'Run optimization to compare candidate interventions.'}</p>
         )}

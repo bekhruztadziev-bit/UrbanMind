@@ -15,7 +15,7 @@ def test_build_neighborhood_summary_mentions_category_and_name():
         },
     )
 
-    assert summary['product_name'] == 'MahallaMind'
+    assert summary['product_name'] == 'UrbanMind'
     assert summary['category'] == 'Neighborhood Mobility Intelligence'
     assert 'school' in summary['focus'].lower()
     assert isinstance(summary['signals'], list)
