@@ -12,6 +12,7 @@ import { FAQ } from './components/FAQ/FAQ'
 import { ExperimentsPage } from './components/Experiments/ExperimentsPage'
 import { HistoryPage } from './components/History/HistoryPage'
 import { AmbientBackground } from './components/Common/AmbientBackground'
+import { HeroIntro } from './components/Common/HeroIntro'
 import './App.css'
 
 const fallbackDistrict = {
@@ -32,13 +33,7 @@ const fallbackDistrict = {
     { id: 'intersection_2', name: 'School Junction', coords: [39.0886, 66.8668], traffic_light_ids: ['cluster_2'] },
     { id: 'intersection_3', name: 'Market Roundabout', coords: [39.0809, 66.8531], traffic_light_ids: ['cluster_3'] },
   ],
-  roads: [
-    [[39.074, 66.846], [39.096, 66.846]],
-    [[39.074, 66.861], [39.096, 66.861]],
-    [[39.074, 66.879], [39.096, 66.879]],
-    [[39.0815, 66.846], [39.0815, 66.879]],
-    [[39.089, 66.846], [39.089, 66.879]],
-  ],
+  roads: [],
   facilities: [
     { id: 'school_1', type: 'school', name: 'District School', coords: [39.0883, 66.8661] },
     { id: 'clinic_1', type: 'clinic', name: 'Community Clinic', coords: [39.0821, 66.8576] },
@@ -57,6 +52,7 @@ function App() {
   const [currentView, setCurrentView] = useState('insights')
   const [globalError, setGlobalError] = useState('')
   const [presentationMode, setPresentationMode] = useState(false)
+  const [showIntro, setShowIntro] = useState(() => localStorage.getItem('urbanmind_hide_intro') !== 'true')
 
   const {
     metrics,
@@ -137,7 +133,8 @@ function App() {
     return (
       <>
         <AmbientBackground />
-        <FAQ t={t} setCurrentView={setCurrentView} toggleLanguage={toggleLanguage} />
+        <FAQ t={t} setCurrentView={setCurrentView} toggleLanguage={toggleLanguage} onOpenIntro={() => setShowIntro(true)} />
+        <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       </>
     )
   }
@@ -148,12 +145,15 @@ function App() {
         <AmbientBackground />
         <ExperimentsPage
           t={t}
+          language={language}
           setCurrentView={setCurrentView}
           toggleLanguage={toggleLanguage}
           experiment={experiment}
           experimentHistory={experimentHistory}
           presentationMode={presentationMode}
+          onOpenIntro={() => setShowIntro(true)}
         />
+        <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       </>
     )
   }
@@ -168,7 +168,9 @@ function App() {
           toggleLanguage={toggleLanguage}
           experimentHistory={experimentHistory}
           setDisplayedResult={experiment.setDisplayedResult}
+          onOpenIntro={() => setShowIntro(true)}
         />
+        <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       </>
     )
   }
@@ -176,6 +178,7 @@ function App() {
   return (
     <>
       <AmbientBackground />
+      <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       <div className="app-shell">
         <div className="map-panel">
           <Header 
@@ -183,6 +186,7 @@ function App() {
             currentView={currentView} 
             setCurrentView={setCurrentView} 
             toggleLanguage={toggleLanguage} 
+            onOpenIntro={() => setShowIntro(true)}
           />
           <MapView
             mahalla={mahalla}

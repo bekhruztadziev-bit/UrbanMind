@@ -1,7 +1,7 @@
 import React from 'react'
 import { Header } from '../Header/Header'
 
-export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHistory, setDisplayedResult }) {
+export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHistory, setDisplayedResult, onOpenIntro }) {
   const { experiments, removeExperiment, clearHistory } = experimentHistory
 
   const handleReopen = (exp) => {
@@ -16,6 +16,7 @@ export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHisto
         currentView="history"
         setCurrentView={setCurrentView}
         toggleLanguage={toggleLanguage}
+        onOpenIntro={onOpenIntro}
       />
       <main style={{ marginTop: '1rem' }}>
         <div className="panel-card" style={{ padding: '2rem' }}>

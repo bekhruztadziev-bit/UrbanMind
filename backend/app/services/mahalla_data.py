@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 MAHALLA_BOUNDS = {
-    "name": "Mahalla Center and surrounding corridor",
-    "southwest": [41.3052, 69.2564],
-    "northeast": [41.3276, 69.2804],
+    "name": "Tashkent Central Corridor",
+    "southwest": [41.3080, 69.2550],
+    "northeast": [41.3250, 69.2780],
     "polygon": [
-        [41.3052, 69.2564],
-        [41.3052, 69.2804],
-        [41.3276, 69.2804],
-        [41.3276, 69.2564],
+        [41.3080, 69.2550],
+        [41.3080, 69.2780],
+        [41.3250, 69.2780],
+        [41.3250, 69.2550],
     ],
 }
 
 # Broader Tashkent urban context — for expanded map view
-# The simulation only covers MAHALLA_BOUNDS; this provides
-# contextual extent for the city-scale display.
 TASHKENT_CONTEXT = {
     "name": "Tashkent",
     "center": [41.2995, 69.2401],
@@ -64,15 +62,7 @@ INTERSECTIONS = [
     },
 ]
 
-ROADS = [
-    [[41.3098, 69.2620], [41.3238, 69.2620]],
-    [[41.3098, 69.2680], [41.3238, 69.2680]],
-    [[41.3098, 69.2730], [41.3238, 69.2730]],
-    [[41.3165, 69.2598], [41.3165, 69.2758]],
-    [[41.3190, 69.2598], [41.3190, 69.2758]],
-    [[41.3135, 69.2598], [41.3135, 69.2758]],
-    [[41.3212, 69.2598], [41.3212, 69.2758]],
-]
+ROADS = []
 
 FACILITIES = [
     {"id": "school_1", "type": "school", "name": "District School", "coords": [41.3186, 69.2698]},

@@ -1,12 +1,31 @@
 import React from 'react'
 
-const EVAL_BADGE = {
-  SIMULATED: { label: 'SIMULATED', className: 'provenance-badge simulated' },
-  HEURISTIC: { label: 'ESTIMATED', className: 'provenance-badge estimated' },
+const INTERVENTION_LABELS_RU = {
+  'Extend main green phase': 'Продление основной зеленой фазы',
+  'Reduce competing phase': 'Сокращение конкурирующей фазы',
+  'Bus-priority corridor': 'Коридор с приоритетом автобусов',
+  'Pedestrian priority window': 'Окно приоритета пешеходов',
+  'School-zone speed calming': 'Успокоение трафика в школьной зоне',
+  'Short-stay curb rotation': 'Ротация парковки короткого пребывания',
+}
+
+const PROFILES_RU = {
+  'Fast Evaluation': 'Быстрая оценка',
+  'Standard Evaluation': 'Стандартная оценка',
+  'Extended Evaluation': 'Расширенная оценка',
+  'Custom': 'Пользовательский',
+}
+
+const PROFILES_DESC_RU = {
+  'Fast Evaluation': 'Экспресс-оценка (100 шагов прогрев + 200 измерение)',
+  'Standard Evaluation': 'Стабильное сравнение (300 шагов прогрев + 600 измерение)',
+  'Extended Evaluation': 'Глубокий анализ коридора (600 шагов прогрев + 1200 измерение)',
+  'Custom': 'Ручная настройка параметров симуляции',
 }
 
 export function ExperimentBuilder({
   t,
+  language = 'en',
   analysisType, setAnalysisType,
   experimentName, setExperimentName,
   selectedTrafficLevels, toggleTrafficLevel,
@@ -21,6 +40,21 @@ export function ExperimentBuilder({
   TRAFFIC_LEVELS,
 }) {
   const isRunning = status === 'RUNNING'
+  const isRu = language === 'ru'
+
+  const getProfileLabel = (p) => {
+    if (isRu && PROFILES_RU[p.id]) {
+      return `${PROFILES_RU[p.id]} (${p.steps} ${t.steps || 'шагов'})`
+    }
+    return `${p.id} (${p.steps} steps)`
+  }
+
+  const getProfileDesc = () => {
+    if (isRu && PROFILES_DESC_RU[simulationProfile]) {
+      return PROFILES_DESC_RU[simulationProfile]
+    }
+    return SIMULATION_PROFILES.find(p => p.id === simulationProfile)?.desc
+  }
 
   return (
     <div className="panel-card experiment-builder">
@@ -28,21 +62,41 @@ export function ExperimentBuilder({
 
       {/* Analysis Type Toggle */}
       <div className="control-group">
-        <label>{t.analysisType || 'Analysis Type'}</label>
-        <div className="segmented-control" style={{ display: 'flex', gap: '0.2rem', background: '#e2e8f0', padding: '0.25rem', borderRadius: '8px' }}>
+        <label>{t.analysisType || (isRu ? 'Тип анализа' : 'Analysis Type')}</label>
+        <div className="segmented-control" style={{ display: 'flex', gap: '0.35rem', background: 'rgba(15, 23, 42, 0.8)', padding: '0.3rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
           <button 
             type="button"
-            style={{ flex: 1, border: 'none', background: analysisType === 'scenario' ? '#fff' : 'transparent', color: analysisType === 'scenario' ? '#0f172a' : '#64748b', padding: '0.4rem', borderRadius: '6px', fontWeight: analysisType === 'scenario' ? 600 : 500, boxShadow: analysisType === 'scenario' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}
+            style={{
+              flex: 1,
+              border: analysisType === 'scenario' ? '1px solid var(--accent-primary)' : '1px solid transparent',
+              background: analysisType === 'scenario' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+              color: analysisType === 'scenario' ? '#38bdf8' : 'var(--text-muted)',
+              padding: '0.45rem',
+              borderRadius: '8px',
+              fontWeight: analysisType === 'scenario' ? 600 : 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
             onClick={() => setAnalysisType('scenario')}
           >
-            {t.quickWhatIf || 'Quick What-If'}
+            {t.quickWhatIf || (isRu ? 'Экспресс-сценарий' : 'Quick What-If')}
           </button>
           <button 
             type="button"
-            style={{ flex: 1, border: 'none', background: analysisType === 'experiment' ? '#fff' : 'transparent', color: analysisType === 'experiment' ? '#0f172a' : '#64748b', padding: '0.4rem', borderRadius: '6px', fontWeight: analysisType === 'experiment' ? 600 : 500, boxShadow: analysisType === 'experiment' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}
+            style={{
+              flex: 1,
+              border: analysisType === 'experiment' ? '1px solid var(--accent-primary)' : '1px solid transparent',
+              background: analysisType === 'experiment' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+              color: analysisType === 'experiment' ? '#38bdf8' : 'var(--text-muted)',
+              padding: '0.45rem',
+              borderRadius: '8px',
+              fontWeight: analysisType === 'experiment' ? 600 : 500,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
             onClick={() => setAnalysisType('experiment')}
           >
-            {t.experimentTab || 'Experiment'}
+            {t.experimentTab || (isRu ? 'Эксперимент' : 'Experiment')}
           </button>
         </div>
       </div>
@@ -84,7 +138,7 @@ export function ExperimentBuilder({
 
       {/* Simulation Profile */}
       <div className="control-group">
-        <label htmlFor="exp-profile">Simulation Profile</label>
+        <label htmlFor="exp-profile">{t.simulationProfile || (isRu ? 'Профиль симуляции' : 'Simulation Profile')}</label>
         <select
           id="exp-profile"
           value={simulationProfile}
@@ -92,17 +146,17 @@ export function ExperimentBuilder({
           disabled={isRunning}
         >
           {SIMULATION_PROFILES.map(p => (
-            <option key={p.id} value={p.id}>{p.id} ({p.steps} steps)</option>
+            <option key={p.id} value={p.id}>{getProfileLabel(p)}</option>
           ))}
         </select>
-        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem', lineHeight: 1.3 }}>
-          {SIMULATION_PROFILES.find(p => p.id === simulationProfile)?.desc}
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem', lineHeight: 1.35 }}>
+          {getProfileDesc()}
         </div>
         
         {simulationProfile === 'Custom' && (
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.75rem' }}>
             <div style={{ flex: 1 }}>
-              <label htmlFor="warmup-steps" style={{ fontSize: '0.8rem' }}>Warm-up Steps</label>
+              <label htmlFor="warmup-steps" style={{ fontSize: '0.8rem' }}>{isRu ? 'Шаги прогрева' : 'Warm-up Steps'}</label>
               <input
                 id="warmup-steps"
                 type="number"
@@ -115,7 +169,7 @@ export function ExperimentBuilder({
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label htmlFor="measurement-steps" style={{ fontSize: '0.8rem' }}>Measurement Steps</label>
+              <label htmlFor="measurement-steps" style={{ fontSize: '0.8rem' }}>{isRu ? 'Шаги измерения' : 'Measurement Steps'}</label>
               <input
                 id="measurement-steps"
                 type="number"
@@ -133,7 +187,7 @@ export function ExperimentBuilder({
 
       {/* Interventions */}
       <div className="control-group">
-        <label>{t.interventionSel}</label>
+        <label>{t.interventionSel || (isRu ? 'Выбор мер' : 'Interventions')}</label>
         {registryLoading ? (
           <p className="traffic-legend muted">{t.loadingInterventions}</p>
         ) : registryError ? (
@@ -141,8 +195,12 @@ export function ExperimentBuilder({
         ) : (
           <div className="intervention-checklist">
             {interventionRegistry.map(iv => {
-              const badge = EVAL_BADGE[iv.evaluation_mode] || EVAL_BADGE.HEURISTIC
+              const isSim = iv.evaluation_mode === 'SIMULATED'
+              const badgeClass = isSim ? 'provenance-badge simulated' : 'provenance-badge estimated'
+              const badgeText = isSim ? (isRu ? 'СМОДЕЛИРОВАНО' : 'SIMULATED') : (isRu ? 'ОЦЕНЕНО' : 'ESTIMATED')
               const isChecked = selectedInterventionIds.includes(iv.id)
+              const label = isRu ? (iv.label_ru || INTERVENTION_LABELS_RU[iv.label] || iv.label) : (iv.label_en || iv.label)
+
               return (
                 <label key={iv.id} className={`intervention-option ${isChecked ? 'checked' : ''} ${analysisType === 'scenario' && !isChecked && selectedInterventionIds.length > 0 ? 'muted' : ''}`}>
                   <input
@@ -152,9 +210,9 @@ export function ExperimentBuilder({
                     disabled={isRunning}
                     name="intervention-id"
                   />
-                  <span className="iv-label">{iv.label}</span>
-                  <span className={badge.className}>
-                    {badge.label}
+                  <span className="iv-label">{label}</span>
+                  <span className={badgeClass}>
+                    {badgeText}
                   </span>
                 </label>
               )
@@ -165,13 +223,21 @@ export function ExperimentBuilder({
 
       {/* Matrix preview */}
       <div className="condition-preview" style={{
-        background: conditionBlocked ? 'rgba(239,68,68,0.08)' : conditionWarning ? 'rgba(245,158,11,0.08)' : 'rgba(15,118,110,0.06)',
-        border: `1px solid ${conditionBlocked ? '#ef444430' : conditionWarning ? '#f59e0b30' : '#0f766e30'}`,
-        borderRadius: '10px', padding: '0.6rem 0.9rem', fontSize: '0.85rem', marginTop: '0.5rem'
+        background: conditionBlocked ? 'rgba(239,68,68,0.12)' : conditionWarning ? 'rgba(245,158,11,0.12)' : 'rgba(56, 189, 248, 0.08)',
+        border: `1px solid ${conditionBlocked ? 'rgba(239,68,68,0.3)' : conditionWarning ? 'rgba(245,158,11,0.3)' : 'rgba(56, 189, 248, 0.25)'}`,
+        borderRadius: '10px', padding: '0.6rem 0.9rem', fontSize: '0.85rem', marginTop: '0.5rem', color: 'var(--text-secondary)'
       }}>
-        <strong>{selectedTrafficLevels.length}</strong> {t.trafficLevels} × <strong>{selectedInterventionIds.length || 1}</strong> {t.interventions} = <strong>{conditionCount}</strong> {t.conditions}
+        {isRu ? (
+          <span>
+            <strong>{selectedTrafficLevels.length}</strong> ур. трафика × <strong>{selectedInterventionIds.length || 1}</strong> мер = <strong>{conditionCount}</strong> усл.
+          </span>
+        ) : (
+          <span>
+            <strong>{selectedTrafficLevels.length}</strong> {t.trafficLevels} × <strong>{selectedInterventionIds.length || 1}</strong> {t.interventions} = <strong>{conditionCount}</strong> {t.conditions}
+          </span>
+        )}
         {conditionBlocked && <div style={{ color: '#ef4444', marginTop: '0.3rem' }}>{t.conditionLimitExceeded}</div>}
-        {conditionWarning && !conditionBlocked && <div style={{ color: '#b45309', marginTop: '0.3rem' }}>{t.conditionWarning}</div>}
+        {conditionWarning && !conditionBlocked && <div style={{ color: '#fbbf24', marginTop: '0.3rem' }}>{t.conditionWarning}</div>}
       </div>
 
       <div className="button-stack" style={{ marginTop: '0.75rem' }}>
@@ -188,7 +254,7 @@ export function ExperimentBuilder({
               </svg>
               {analysisType === 'scenario' ? t.runningScenario : t.runningExperiment}
             </span>
-          ) : (analysisType === 'scenario' ? t.runScenario : t.runExperiment)}
+          ) : (analysisType === 'scenario' ? (isRu ? 'Запустить сценарий' : 'Run Scenario') : t.runExperiment)}
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Header } from '../Header/Header'
 
-export function FAQ({ t, setCurrentView, toggleLanguage }) {
+export function FAQ({ t, setCurrentView, toggleLanguage, onOpenIntro }) {
   return (
     <div className="app-shell faq-shell">
       <Header
@@ -9,6 +9,7 @@ export function FAQ({ t, setCurrentView, toggleLanguage }) {
         currentView="faq"
         setCurrentView={setCurrentView}
         toggleLanguage={toggleLanguage}
+        onOpenIntro={onOpenIntro}
       />
 
       <main className="faq-page">

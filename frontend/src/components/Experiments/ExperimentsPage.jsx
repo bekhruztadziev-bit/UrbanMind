@@ -15,11 +15,13 @@ const RESULT_TABS = [
 
 export function ExperimentsPage({
   t,
+  language = 'en',
   setCurrentView,
   toggleLanguage,
   experiment,
   experimentHistory,
 }) {
+  const isRu = language === 'ru'
   const {
     experimentName, setExperimentName,
     selectedTrafficLevels, toggleTrafficLevel,
@@ -35,6 +37,12 @@ export function ExperimentsPage({
     displayedResult, setDisplayedResult
   } = experiment
 
+  const RESULT_TABS = [
+    { id: 'matrix', label: t.resultsMatrixTab || (isRu ? 'Матрица результатов' : 'Results Matrix') },
+    { id: 'effect', label: t.interventionEffectTab || (isRu ? 'Эффект мер' : 'Intervention Effect') },
+    { id: 'robustness', label: t.robustnessTab || (isRu ? 'Устойчивость' : 'Robustness') },
+  ]
+
   const [activeTab, setActiveTab] = useState('matrix')
   const [presentationMode, setPresentationMode] = useState(false)
 
@@ -48,13 +56,12 @@ export function ExperimentsPage({
     }
   }, [experimentResult, status])
 
-  // Handled in HistoryPage now
-
   return (
     <div className={`app-shell experiments-shell ${presentationMode ? 'presentation-mode' : ''}`} style={{ display: 'block', maxWidth: '1460px', margin: '0 auto', padding: presentationMode ? '0.5rem' : '1.1rem', minHeight: '100vh', background: 'var(--bg-base)' }}>
       {!presentationMode && (
         <Header
           t={t}
+          language={language}
           currentView="explore"
           setCurrentView={setCurrentView}
           toggleLanguage={toggleLanguage}
@@ -64,16 +71,17 @@ export function ExperimentsPage({
       {presentationMode && (
         <div style={{ textAlign: 'right', marginBottom: '0.5rem' }}>
           <button type="button" className="ghost-button" style={{ fontSize: '0.8rem' }} onClick={() => setPresentationMode(false)}>
-            Exit Presentation Mode
+            {t.exitPresentation || (isRu ? 'Выйти из режима презентации' : 'Exit Presentation Mode')}
           </button>
         </div>
       )}
 
-      <main style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 320px) minmax(0, 1fr)', gap: '1.25rem', marginTop: '1rem' }}>
-        {/* Left: Builder + History */}
+      <main style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 340px) minmax(0, 1fr)', gap: '1.25rem', marginTop: '1rem' }}>
+        {/* Left: Builder + Presets */}
         <aside>
           <ExperimentBuilder
             t={t}
+            language={language}
             analysisType={analysisType}
             setAnalysisType={setAnalysisType}
             experimentName={experimentName}
@@ -102,14 +110,14 @@ export function ExperimentsPage({
               type="button"
               className="ghost-button"
               onClick={() => {
-                setExperimentName('Competition Benchmark')
+                setExperimentName(isRu ? 'Бенчмарк для жюри' : 'Competition Benchmark')
                 experiment.setSelectedTrafficLevels([0.8, 1.0, 1.2, 1.4])
                 experiment.setSelectedInterventionIds(['tc_20kmh', 'signal_p5', 'signal_m5'])
                 experiment.setSimulationProfile('Standard Evaluation')
               }}
-              style={{ fontSize: '0.82rem', background: '#e2e8f0' }}
+              style={{ fontSize: '0.82rem', background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
-              Load Competition Demo Preset
+              {t.loadPreset || (isRu ? 'Загрузить демо-пресет' : 'Load Competition Demo Preset')}
             </button>
             {!presentationMode && (
               <button
@@ -118,7 +126,7 @@ export function ExperimentsPage({
                 onClick={() => setPresentationMode(true)}
                 style={{ fontSize: '0.82rem' }}
               >
-                Enter Presentation Mode
+                {t.enterPresentation || (isRu ? 'Режим презентации' : 'Enter Presentation Mode')}
               </button>
             )}
           </div>
@@ -151,24 +159,24 @@ export function ExperimentsPage({
               </div>
 
               {/* Experiment metadata pill */}
-              <div className="panel-card" style={{ padding: '0.6rem 0.9rem', fontSize: '0.8rem', color: '#475569' }}>
-                <strong style={{ color: '#0f172a' }}>{activeResult.name}</strong>
-                {' · '}{activeResult.experiment_id}
+              <div className="panel-card" style={{ padding: '0.7rem 1rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                <strong style={{ color: '#fff' }}>{activeResult.name}</strong>
+                {' · '}<span style={{ color: 'var(--accent-primary)' }}>{activeResult.experiment_id}</span>
                 {' · '}{activeResult.metadata?.simulation_profile || 'Custom'} ({activeResult.duration} steps)
                 {' · '}{activeResult.created_at ? new Date(activeResult.created_at).toLocaleString() : ''}
               </div>
 
               {/* Tab bar */}
-              <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '0' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.2rem' }}>
                 {RESULT_TABS.map(tab => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
                     style={{
-                      background: 'none', border: 'none', borderBottom: activeTab === tab.id ? '2px solid #0f766e' : '2px solid transparent',
-                      borderRadius: 0, color: activeTab === tab.id ? '#0f766e' : '#64748b',
-                      padding: '0.5rem 0.75rem', fontWeight: activeTab === tab.id ? 700 : 500,
+                      background: 'none', border: 'none', borderBottom: activeTab === tab.id ? '2px solid var(--accent-primary)' : '2px solid transparent',
+                      borderRadius: 0, color: activeTab === tab.id ? 'var(--accent-primary)' : 'var(--text-muted)',
+                      padding: '0.5rem 0.85rem', fontWeight: activeTab === tab.id ? 700 : 500,
                       cursor: 'pointer', fontSize: '0.88rem', marginBottom: '-2px', boxShadow: 'none',
                     }}
                   >
@@ -184,8 +192,14 @@ export function ExperimentsPage({
           )}
 
           {!activeResult && status === 'READY' && (
-            <div className="panel-card empty-state" style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <p style={{ color: '#64748b' }}>{t.experimentEmptyState}</p>
+            <div className="panel-card empty-state" style={{ minHeight: '320px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '2rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem', opacity: 0.85 }}>🔬</div>
+              <h4 style={{ fontSize: '1.1rem', color: '#fff', marginBottom: '0.5rem' }}>
+                {isRu ? 'Готово к запуску симуляции' : 'Ready to Run Simulation'}
+              </h4>
+              <p style={{ color: 'var(--text-muted)', maxWidth: '440px', fontSize: '0.88rem', lineHeight: 1.5 }}>
+                {t.experimentEmptyState || (isRu ? 'Настройте параметры сценария слева и нажмите «Запустить симуляцию», чтобы протестировать реакцию коридора на различные сценарии загруженности.' : 'Configure scenario parameters on the left and click "Run Simulation" to evaluate corridor performance under varying traffic levels.')}
+              </p>
             </div>
           )}
         </section>
