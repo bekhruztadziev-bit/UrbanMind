@@ -1,0 +1,57 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "frontend-build",
+			"type": "shell",
+			"command": "cd /d c:\\Users\\user\\UrbanMind\\frontend && npm run build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "frontend-verify",
+			"type": "shell",
+			"command": "cd /d C:\\Users\\user\\UrbanMind\\frontend; node -v; npm -v; npm run build",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend-final-check",
+			"type": "shell",
+			"command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:/Users/user/UrbanMind/frontend'; npm run build\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "frontend-build",
+			"type": "shell",
+			"command": "cd /d c:\\Users\\user\\UrbanMind\\frontend && npm run build",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "frontend-build-verify",
+			"type": "shell",
+			"command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'C:/Users/user/UrbanMind/frontend'; npm run build\"",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "frontend-build-cmd",
+			"type": "shell",
+			"command": "cmd.exe /d /c \"cd /d C:\\Users\\user\\UrbanMind\\frontend && C:\\Program Files\\nodejs\\npm.cmd run build\"",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

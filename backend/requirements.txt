@@ -7,3 +7,4 @@ google-genai
 pydantic-settings
 python-dotenv
 psutil
+httpx

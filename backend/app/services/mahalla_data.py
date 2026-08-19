@@ -12,6 +12,19 @@ MAHALLA_BOUNDS = {
     ],
 }
 
+# Broader Tashkent urban context — for expanded map view
+# The simulation only covers MAHALLA_BOUNDS; this provides
+# contextual extent for the city-scale display.
+TASHKENT_CONTEXT = {
+    "name": "Tashkent",
+    "center": [41.2995, 69.2401],
+    "display_bounds": {
+        "southwest": [41.24, 69.12],
+        "northeast": [41.38, 69.38],
+    },
+    "simulation_region": MAHALLA_BOUNDS,
+}
+
 INTERSECTIONS = [
     {
         "id": "intersection_1",
@@ -73,6 +86,16 @@ FACILITIES = [
     {"id": "mosque_1", "type": "religious", "name": "Mosque Lane", "coords": [41.3213, 69.2727]},
 ]
 
+# Known Tashkent environmental monitoring stations
+# Source: Uzhydromet (monitoring.meteo.uz)
+MONITORING_STATIONS = [
+    {"id": "uzhydromet_chilanzar", "name": "Chilanzar", "coords": [41.2856, 69.2128], "source": "Uzhydromet"},
+    {"id": "uzhydromet_center", "name": "Amir Temur", "coords": [41.3111, 69.2797], "source": "Uzhydromet"},
+    {"id": "uzhydromet_sergeli", "name": "Sergeli", "coords": [41.2275, 69.2199], "source": "Uzhydromet"},
+    {"id": "uzhydromet_olmazor", "name": "Olmazor", "coords": [41.3377, 69.2150], "source": "Uzhydromet"},
+    {"id": "uzhydromet_yakkasaray", "name": "Yakkasaray", "coords": [41.2887, 69.2864], "source": "Uzhydromet"},
+]
+
 
 def get_mahalla_data() -> dict:
     return {
@@ -81,4 +104,6 @@ def get_mahalla_data() -> dict:
         "intersections": INTERSECTIONS,
         "roads": ROADS,
         "facilities": FACILITIES,
+        "urban_context": TASHKENT_CONTEXT,
+        "monitoring_stations": MONITORING_STATIONS,
     }

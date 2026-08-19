@@ -103,8 +103,10 @@ def explain_results(baseline: dict[str, Any], candidates: list[dict[str, Any]], 
         best_desc = best.get("description", "best measured intervention") if best else "best measured intervention"
         best_delta = best.get("delta", {}) if best else {}
         prompt = (
-            "You are generating a short operational recommendation from simulation metrics only. "
-            "Do not claim real-world impact beyond these measured results. "
+            "You are generating a short operational recommendation from simulation metrics. "
+            "Some metrics (speed, wait time) are simulated directly. "
+            "Environmental metrics (CO2, NOx, Noise) and accessibility are formulaic estimates. "
+            "Do not claim these estimates are physical measurements. Use phrases like 'estimated to decrease'. "
             f"Baseline average speed: {baseline_speed} km/h. Baseline average waiting: {baseline_wait} seconds. "
             f"Best measured intervention: {best_desc}. "
             f"Best average speed: {best_speed} km/h. Best average waiting: {best_wait} seconds. "
