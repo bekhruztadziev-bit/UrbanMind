@@ -198,7 +198,9 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     If SUMO is not installed / configured (e.g. in cloud/serverless previews),
     gracefully generates a calibrated, deterministic simulation result.
     """
-    if not _is_sumo_available():
+    try:
+        _ensure_sumo_ready()
+    except Exception:
         return _generate_fallback_simulation(request)
 
     # Determine steps based on backwards-compatibility or explicit params
