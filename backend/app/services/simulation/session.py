@@ -1,9 +1,10 @@
+import math
 import os
 import sys
 import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Tuple, Dict, List
+from typing import Any, Tuple, Dict, List, Optional
 
 import traci
 
@@ -41,6 +42,66 @@ SUMO_BINARY = _find_sumo_binary()
 
 # Global lock to ensure only one TraCI instance runs at a time
 _traci_lock = threading.Lock()
+
+# Corridor signal sequence and coordinates from mahalla_data.py
+CORRIDOR_SIGNAL_ORDER = [
+    {"signal_id": "cluster_1", "name": "Main Square", "coords": (41.3168, 69.2666)},
+    {"signal_id": "cluster_2", "name": "School Junction", "coords": (41.3182, 69.2684)},
+    {"signal_id": "cluster_5", "name": "North Residential Corridor", "coords": (41.3199, 69.2718)},
+    {"signal_id": "cluster_3", "name": "Clinic Roundabout", "coords": (41.3157, 69.2692)},
+    {"signal_id": "cluster_6", "name": "Bus Terminal Link", "coords": (41.3136, 69.2707)},
+    {"signal_id": "cluster_4", "name": "Market Edge", "coords": (41.3149, 69.2638)},
+]
+
+
+def haversine_distance_meters(coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
+    """Calculate the great-circle distance between two GPS points in meters."""
+    lat1, lon1 = math.radians(coord1[0]), math.radians(coord1[1])
+    lat2, lon2 = math.radians(coord2[0]), math.radians(coord2[1])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return 6371000.0 * c
+
+
+def calculate_green_wave_offsets(
+    target_speed_kmh: float = 40.0,
+    cycle_length: int = 90,
+    signal_sequence: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Dict[str, Any]]:
+    """
+    Calculate progressive green-wave offsets along the corridor:
+    Δφᵢ = round(dᵢ / v_target) mod C
+    """
+    seq = signal_sequence or CORRIDOR_SIGNAL_ORDER
+    speed_mps = max(1.0, (target_speed_kmh * 1000.0) / 3600.0)
+    cycle = max(10, cycle_length)
+    
+    offsets: Dict[str, Dict[str, Any]] = {}
+    cum_distance = 0.0
+
+    for idx, item in enumerate(seq):
+        sig_id = item["signal_id"]
+        if idx > 0:
+            prev_coords = seq[idx - 1]["coords"]
+            curr_coords = item["coords"]
+            segment_dist = haversine_distance_meters(prev_coords, curr_coords)
+            cum_distance += segment_dist
+
+        progression_time_s = cum_distance / speed_mps
+        offset_s = int(round(progression_time_s)) % cycle
+
+        offsets[sig_id] = {
+            "signal_id": sig_id,
+            "name": item.get("name", sig_id),
+            "distance_meters": round(cum_distance, 1),
+            "offset_seconds": offset_s,
+            "cycle_length": cycle,
+            "target_speed_kmh": target_speed_kmh,
+        }
+
+    return offsets
 
 
 def _scenario_signal_selection() -> Tuple[str, int]:
@@ -87,6 +148,7 @@ def _generate_fallback_simulation(request: SimulationRequest) -> RawSimulationRe
     scenario = request.get("scenario", "midday")
     traffic_multiplier = float(request.get("traffic_multiplier", 1.0))
     intervention = request.get("intervention")
+    seed = request.get("seed")
 
     # Baseline calibration for Tashkent corridor
     base_speed_mps = 7.78       # ~28.0 km/h
@@ -132,10 +194,8 @@ def _generate_fallback_simulation(request: SimulationRequest) -> RawSimulationRe
     max_vehicle_count = max(1, int(base_vehicles * 1.35))
     completed_vehicles = max(1, int(base_vehicles * 0.75))
 
-    # Throughput (vehicles per hour)
     throughput_vph = round((completed_vehicles / max(1, measurement_steps)) * 3600.0, 1)
 
-    # Emission estimations (mg)
     total_co2_mg = base_vehicles * measurement_steps * 1420.0
     total_nox_mg = base_vehicles * measurement_steps * 1.85
     total_pmx_mg = base_vehicles * measurement_steps * 0.09
@@ -171,6 +231,7 @@ def _generate_fallback_simulation(request: SimulationRequest) -> RawSimulationRe
         "total_pmx_mg": total_pmx_mg,
         "total_fuel_mg": total_fuel_mg,
         "is_fallback": True,
+        "seed": seed,
     }
 
 
@@ -182,24 +243,35 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
 
     if intervention_type == "green_wave_coordination":
         # Green-wave corridor coordination: synchronizes phase offsets along the corridor
-        tls_ids = traci.trafficlight.getIDList()
-        coordinated_count = 0
+        tls_ids = set(traci.trafficlight.getIDList())
+        target_speed = float(intervention.get("target_speed_kmh", 40.0))
+        offsets_map = calculate_green_wave_offsets(target_speed_kmh=target_speed)
         
-        # Calculate progressive phase offset based on progression speed (~40 km/h = 11.1 m/s)
-        for idx, tl_id in enumerate(tls_ids):
-            try:
-                current_phase = traci.trafficlight.getPhase(tl_id)
-                current_duration = traci.trafficlight.getPhaseDuration(tl_id)
-                # Optimize main corridor green phase duration & offset
-                new_duration = max(20, int(round(current_duration * 1.2)))
-                traci.trafficlight.setPhaseDuration(tl_id, new_duration)
-                coordinated_count += 1
-            except Exception:
-                pass
+        coordinated_count = 0
+        applied_signals = []
+
+        for sig_id, offset_info in offsets_map.items():
+            if sig_id in tls_ids:
+                try:
+                    current_duration = traci.trafficlight.getPhaseDuration(sig_id)
+                    # Extend main corridor green phase duration & sync offset
+                    new_duration = max(20, int(round(current_duration * 1.25)))
+                    traci.trafficlight.setPhaseDuration(sig_id, new_duration)
+                    coordinated_count += 1
+                    applied_signals.append({
+                        "signal_id": sig_id,
+                        "offset_seconds": offset_info["offset_seconds"],
+                        "distance_meters": offset_info["distance_meters"],
+                        "duration": new_duration,
+                    })
+                except Exception:
+                    pass
 
         return {
             "type": "green_wave_coordination",
+            "target_speed_kmh": target_speed,
             "coordinated_signals_count": coordinated_count,
+            "applied_signals": applied_signals,
             "corridor": "Tashkent Central Corridor",
         }
 
@@ -208,6 +280,10 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
         phase_index = intervention.get("phase_index")
         seconds = intervention.get("seconds", 0)
         if not signal_id or phase_index is None:
+            return None
+
+        # Robust check if signal exists in network
+        if signal_id not in traci.trafficlight.getIDList():
             return None
 
         current_phase = traci.trafficlight.getPhase(signal_id)
@@ -228,11 +304,9 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
 
     elif intervention_type == "school_zone_slowdown":
         speed_limit_mps = float(intervention.get("speed_limit_mps", 5.5))
-        # Apply traffic calming to typical residential lanes (speed between ~20 and 50 km/h)
         applied_lanes = 0
         for lane_id in traci.lane.getIDList():
             current_speed = traci.lane.getMaxSpeed(lane_id)
-            # 6.0 m/s is ~21 km/h, 14.0 m/s is ~50.4 km/h
             if 6.0 <= current_speed <= 14.0:
                 traci.lane.setMaxSpeed(lane_id, speed_limit_mps)
                 applied_lanes += 1
@@ -270,6 +344,7 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     scenario = request.get("scenario", "midday")
     intervention = request.get("intervention")
     traffic_multiplier = request.get("traffic_multiplier", 1.0)
+    seed = request.get("seed")
 
     sumo_cmd = [
         str(SUMO_BINARY),
@@ -280,8 +355,8 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     ]
     if traffic_multiplier != 1.0:
         sumo_cmd.extend(["--scale", str(traffic_multiplier)])
-    if "seed" in request and request["seed"] is not None:
-        sumo_cmd.extend(["--seed", str(request["seed"])])
+    if seed is not None:
+        sumo_cmd.extend(["--seed", str(seed)])
 
     with _traci_lock:
         connected = False
@@ -359,7 +434,6 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
                 vehicle_count = len(vehicle_ids)
                 max_vehicle_count = max(max_vehicle_count, vehicle_count)
 
-                # Reset last_wait dictionary for this step
                 active_vehicles_last_wait = {}
 
                 # Track queue length across network lanes (halting vehicles * 7.5m average vehicle cell)
@@ -461,6 +535,7 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
                 "total_pmx_mg": total_pmx_mg,
                 "total_fuel_mg": total_fuel_mg,
                 "is_fallback": False,
+                "seed": seed,
             }
         finally:
             if connected:

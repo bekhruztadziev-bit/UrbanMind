@@ -200,5 +200,9 @@
   "metric": "Метрика",
   "provenance": "Происхождение",
   "directSimulated": "ПРЯМАЯ СИМУЛЯЦИЯ",
-  "calibratedFallback": "КАЛИБРОВАННЫЙ РЕЗЕРВ"
+  "calibratedFallback": "КАЛИБРОВАННЫЙ РЕЗЕРВ",
+  "tradeoffsAnalysis": "Анализ компромиссов (Trade-offs)",
+  "whatImproved": "Улучшено",
+  "tradeoffsList": "Компромиссы",
+  "statisticalRobustness": "Статистическая устойчивость"
 }

@@ -8,6 +8,21 @@ class MetricValue(TypedDict, total=False):
     provenance: str      # "DIRECT" | "SIMULATED" | "OBSERVED" | "ESTIMATED" | "FALLBACK"
     confidence: str      # "high" | "medium" | "low"
     is_simulated: bool
+    timestamp: Optional[str]
+    scenario_id: Optional[str]
+    simulation_id: Optional[str]
+    method: Optional[str]
+    sample_size: Optional[int]
+    std_dev: Optional[float]
+    confidence_interval_95: Optional[List[float]]
+
+
+class TradeoffSummary(TypedDict, total=False):
+    improved: List[Dict[str, Any]]
+    worsened: List[Dict[str, Any]]
+    unchanged: List[Dict[str, Any]]
+    verdict_en: str
+    verdict_ru: str
 
 
 class InterventionDefinition(TypedDict, total=False):
@@ -17,6 +32,7 @@ class InterventionDefinition(TypedDict, total=False):
     seconds: int
     traffic_light_id: str
     phase_index: int
+    target_speed_kmh: Optional[float]
     evaluation_mode: str  # 'SIMULATED' or 'HEURISTIC'
 
 
@@ -64,6 +80,7 @@ class RawSimulationResult(TypedDict, total=False):
     total_pmx_mg: float    # mg, from traci.vehicle.getPMxEmission
     total_fuel_mg: float   # mg, from traci.vehicle.getFuelConsumption
     is_fallback: bool
+    seed: Optional[int]
 
 
 class SimulationMetrics(TypedDict, total=False):
@@ -103,6 +120,7 @@ class SimulationMetrics(TypedDict, total=False):
     sumo_pmx_mg: float          # SIMULATED — from SUMO HBEFA emission model
     sumo_fuel_ml: float         # SIMULATED — from SUMO HBEFA emission model
     is_fallback: bool
+    seed: Optional[int]
     structured_metrics: Optional[Dict[str, MetricValue]]
 
 
@@ -152,6 +170,7 @@ class CandidateResult(TypedDict, total=False):
     score: float
     selected_reason: str
     selected_reason_ru: str
+    tradeoff_summary: Optional[TradeoffSummary]
 
 
 class OptimizationResult(TypedDict, total=False):
@@ -223,6 +242,7 @@ class ExperimentRequest(TypedDict, total=False):
     warmup_steps: int
     measurement_steps: int
     simulation_profile: Optional[str]
+    seeds: Optional[List[int]]
 
 
 class ExperimentCondition(TypedDict, total=False):

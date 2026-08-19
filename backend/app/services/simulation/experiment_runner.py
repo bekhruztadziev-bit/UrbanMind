@@ -13,8 +13,7 @@ Key design decisions:
 - HEURISTIC interventions are labeled as such and never implied to be SUMO-run.
 """
 
-from __future__ import annotations
-
+import math
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -35,6 +34,10 @@ from app.services.simulation.session import _scenario_signal_selection, run_simu
 _DELTA_METRICS = [
     "average_speed_kmh",
     "average_waiting_seconds",
+    "average_travel_time_seconds",
+    "mean_queue_length_meters",
+    "stops_per_vehicle",
+    "throughput_vehicles_per_hour",
     "mean_completed_vehicle_waiting_seconds",
     "mean_active_vehicle_waiting_seconds",
     "max_vehicle_count",
@@ -53,6 +56,49 @@ EFFECTIVE_CRITERION = (
     "An intervention is 'effective' in a demand condition if its delta for "
     "average_waiting_seconds is negative (waiting time is reduced vs control)."
 )
+
+
+def compute_statistical_summary(metrics_list: List[SimulationMetrics]) -> Dict[str, Dict[str, float]]:
+    """
+    Compute mean, std_dev, min, max, and 95% confidence interval across multiple seed runs.
+    """
+    if not metrics_list:
+        return {}
+
+    numeric_keys = [
+        "average_speed_kmh", "average_waiting_seconds", "average_travel_time_seconds",
+        "mean_queue_length_meters", "stops_per_vehicle", "throughput_vehicles_per_hour",
+        "co2_kg", "nox_g", "accessibility_score", "max_vehicle_count"
+    ]
+
+    stats: Dict[str, Dict[str, float]] = {}
+    n = len(metrics_list)
+
+    for key in numeric_keys:
+        values = [float(m.get(key, 0.0) or 0.0) for m in metrics_list if m.get(key) is not None]
+        if not values:
+            continue
+
+        mean_val = sum(values) / len(values)
+        if len(values) > 1:
+            variance = sum((x - mean_val) ** 2 for x in values) / (len(values) - 1)
+            std_dev = math.sqrt(variance)
+        else:
+            std_dev = 0.0
+
+        ci_95_half = 1.96 * (std_dev / math.sqrt(n)) if n > 1 else 0.0
+
+        stats[key] = {
+            "mean": round(mean_val, 2),
+            "std_dev": round(std_dev, 2),
+            "min": round(min(values), 2),
+            "max": round(max(values), 2),
+            "ci_95_low": round(mean_val - ci_95_half, 2),
+            "ci_95_high": round(mean_val + ci_95_half, 2),
+            "sample_count": n,
+        }
+
+    return stats
 
 
 def _build_intervention_map(signal_id: str, phase_index: int) -> Dict[str, dict]:

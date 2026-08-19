@@ -57,6 +57,7 @@ export function RecommendationPanel({ t, selectedCandidate, optResult, language,
   const baseline = optResult?.baseline
   const candMetrics = selectedCandidate?.metrics
   const delta = selectedCandidate?.delta
+  const tradeoff = selectedCandidate?.tradeoff_summary
 
   // Comparison metrics
   const baseWait = baseline?.mean_completed_vehicle_waiting_seconds ?? baseline?.average_waiting_seconds ?? 24.0
@@ -173,6 +174,44 @@ export function RecommendationPanel({ t, selectedCandidate, optResult, language,
               </tbody>
             </table>
           </div>
+
+          {/* Multi-Objective Trade-off Summary */}
+          {tradeoff && (
+            <div className="tradeoff-box" style={{ marginTop: '0.9rem', padding: '0.75rem 0.9rem', background: 'rgba(30, 41, 59, 0.4)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+              <h4 style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                {isRu ? 'Анализ компромиссов (Trade-offs)' : 'Multi-Objective Trade-off Analysis'}
+              </h4>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.4 }}>
+                {isRu ? tradeoff.verdict_ru : tradeoff.verdict_en}
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.76rem' }}>
+                {tradeoff.improved?.length > 0 && (
+                  <div style={{ background: 'rgba(34, 197, 94, 0.08)', padding: '0.4rem 0.55rem', borderRadius: '6px', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                    <strong style={{ color: '#4ade80', display: 'block', marginBottom: '2px' }}>
+                      {isRu ? '🟢 Улучшено:' : '🟢 Improved:'}
+                    </strong>
+                    {tradeoff.improved.map((item, idx) => (
+                      <div key={idx} style={{ color: 'var(--text-primary)' }}>
+                        {item.name}: +{item.change_pct > 0 ? item.change_pct.toFixed(1) : Math.abs(item.change_pct).toFixed(1)}%
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {tradeoff.worsened?.length > 0 && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '0.4rem 0.55rem', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <strong style={{ color: '#f87171', display: 'block', marginBottom: '2px' }}>
+                      {isRu ? '🟡 Компромиссы:' : '🟡 Trade-offs:'}
+                    </strong>
+                    {tradeoff.worsened.map((item, idx) => (
+                      <div key={idx} style={{ color: 'var(--text-primary)' }}>
+                        {item.name}: {item.change_pct.toFixed(1)}%
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <button 
             type="button" 

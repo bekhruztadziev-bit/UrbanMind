@@ -200,5 +200,9 @@
   "metric": "Metric",
   "provenance": "Provenance",
   "directSimulated": "DIRECT SIMULATION",
-  "calibratedFallback": "CALIBRATED FALLBACK"
+  "calibratedFallback": "CALIBRATED FALLBACK",
+  "tradeoffsAnalysis": "Multi-Objective Trade-off Analysis",
+  "whatImproved": "Improved",
+  "tradeoffsList": "Trade-offs",
+  "statisticalRobustness": "Statistical Robustness"
 }

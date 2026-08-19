@@ -1,6 +1,6 @@
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Dict
 
-from app.services.simulation.models import SimulationMetrics, CandidateResult, OptimizationResult, CandidateDelta
+from app.services.simulation.models import SimulationMetrics, CandidateResult, OptimizationResult, CandidateDelta, TradeoffSummary
 from app.services.simulation.interventions import get_intervention_effect_summary, INTERVENTION_LABELS_RU, INTERVENTION_CATEGORIES_RU
 
 
@@ -14,6 +14,58 @@ def _candidate_score(metrics: SimulationMetrics) -> float:
     stops = float(metrics.get("stops_per_vehicle", 1.0))
     queue = float(metrics.get("mean_queue_length_meters", 30.0))
     return (waiting * 0.45) - (speed * 0.15) + (co2 * 0.18) + (stops * 4.0) + (queue * 0.05) + (pedestrian_delay * 0.08) - (access * 0.12)
+
+
+def analyze_tradeoffs(delta: CandidateDelta, language: str = "en") -> TradeoffSummary:
+    """
+    Categorize metrics into improved, worsened, and unchanged dimensions based on semantic direction.
+    """
+    improved: List[Dict[str, Any]] = []
+    worsened: List[Dict[str, Any]] = []
+    unchanged: List[Dict[str, Any]] = []
+
+    metrics_config = [
+        {"key": "average_waiting_seconds", "name_en": "Delay", "name_ru": "Задержка", "unit": "s", "higher_is_better": False, "pct_key": "delay_improvement_pct"},
+        {"key": "average_travel_time_seconds", "name_en": "Travel Time", "name_ru": "Время в пути", "unit": "s", "higher_is_better": False, "pct_key": "travel_time_improvement_pct"},
+        {"key": "stops_per_vehicle", "name_en": "Stops / Veh", "name_ru": "Остановки на авто", "unit": "", "higher_is_better": False, "pct_key": "stops_improvement_pct"},
+        {"key": "mean_queue_length_meters", "name_en": "Queue Length", "name_ru": "Длина очереди", "unit": "m", "higher_is_better": False, "pct_key": "queue_improvement_pct"},
+        {"key": "throughput_vehicles_per_hour", "name_en": "Throughput", "name_ru": "Пропускная способность", "unit": "veh/h", "higher_is_better": True, "pct_key": "throughput_improvement_pct"},
+        {"key": "co2_kg", "name_en": "CO₂ Emissions", "name_ru": "Выбросы CO₂", "unit": "kg", "higher_is_better": False, "pct_key": "emissions_improvement_pct"},
+    ]
+
+    for m in metrics_config:
+        pct = delta.get(m["pct_key"]) if m.get("pct_key") else None
+        name = m["name_ru"] if language == "ru" else m["name_en"]
+
+        if pct is not None:
+            val_pct = float(pct)
+            if val_pct > 2.0:
+                improved.append({"name": name, "change_pct": val_pct, "metric": m["key"]})
+            elif val_pct < -2.0:
+                worsened.append({"name": name, "change_pct": val_pct, "metric": m["key"]})
+            else:
+                unchanged.append({"name": name, "change_pct": val_pct, "metric": m["key"]})
+
+    if len(improved) >= 3 and len(worsened) == 0:
+        verdict_en = "Uniform corridor improvement across all operational and environmental dimensions."
+        verdict_ru = "Комплексное улучшение показателей коридора по всем транспортным и экологическим параметрам."
+    elif len(improved) > len(worsened):
+        verdict_en = f"Net positive corridor performance: {len(improved)} indicators improved with manageable trade-offs in {len(worsened)}."
+        verdict_ru = f"Положительный суммарный эффект: улучшение по {len(improved)} ключевым метрикам при умеренных компромиссах в {len(worsened)}."
+    elif len(worsened) > len(improved):
+        verdict_en = "Trade-off heavy: benefits in specific areas are offset by increased delays elsewhere."
+        verdict_ru = "Высокая цена компромисса: локальные улучшения нивелируются ростом задержек на других участках."
+    else:
+        verdict_en = "Balanced operational profile with minor trade-offs."
+        verdict_ru = "Сбалансированный профиль с незначительными изменениями параметров."
+
+    return {
+        "improved": improved,
+        "worsened": worsened,
+        "unchanged": unchanged,
+        "verdict_en": verdict_en,
+        "verdict_ru": verdict_ru,
+    }
 
 
 def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tuple[dict[str, Any], SimulationMetrics]], language: str = "en") -> List[CandidateResult]:
@@ -83,6 +135,8 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
             "evaluation_mode": entry.get("evaluation_mode", "HEURISTIC"),
         }
 
+        tradeoff = analyze_tradeoffs(delta, language=language)
+
         candidate: CandidateResult = {
             "id": f"{entry.get('type')}_{entry.get('seconds', 0)}s_{category}",
             "label": label_display,
@@ -98,6 +152,7 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
             "metrics": metrics,
             "delta": delta,
             "score": _candidate_score(metrics),
+            "tradeoff_summary": tradeoff,
         }
         candidates.append(candidate)
     return candidates
