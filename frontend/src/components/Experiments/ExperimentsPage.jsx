@@ -51,7 +51,7 @@ export function ExperimentsPage({
   // Handled in HistoryPage now
 
   return (
-    <div className={`app-shell experiments-shell ${presentationMode ? 'presentation-mode' : ''}`} style={{ display: 'block', maxWidth: '1460px', margin: '0 auto', padding: presentationMode ? '0.5rem' : '1.1rem', minHeight: '100vh', background: 'linear-gradient(180deg, #f3f6fb 0%, #edf4f9 100%)' }}>
+    <div className={`app-shell experiments-shell ${presentationMode ? 'presentation-mode' : ''}`} style={{ display: 'block', maxWidth: '1460px', margin: '0 auto', padding: presentationMode ? '0.5rem' : '1.1rem', minHeight: '100vh', background: 'var(--bg-base)' }}>
       {!presentationMode && (
         <Header
           t={t}

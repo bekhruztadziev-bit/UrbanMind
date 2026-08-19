@@ -26,15 +26,25 @@
   --border-color: rgba(255, 255, 255, 0.1);
   --border-subtle: rgba(255, 255, 255, 0.05);
   
-  /* Provenance Badges - More restrained */
-  --badge-observed-bg: rgba(16, 185, 129, 0.1);
+  /* Provenance Badges - Unified 4-tier taxonomy */
+  --badge-observed-bg: rgba(16, 185, 129, 0.12);
   --badge-observed-text: #34d399;
   
-  --badge-simulated-bg: rgba(59, 130, 246, 0.1);
+  --badge-simulated-bg: rgba(59, 130, 246, 0.12);
   --badge-simulated-text: #60a5fa;
   
-  --badge-estimated-bg: rgba(245, 158, 11, 0.1);
+  --badge-estimated-bg: rgba(245, 158, 11, 0.12);
   --badge-estimated-text: #fbbf24;
+
+  --badge-ai-bg: rgba(139, 92, 246, 0.14);
+  --badge-ai-text: #c084fc;
+
+  /* Card elevation and border radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.18);
 
   color: var(--text-primary);
   background: var(--bg-base);
