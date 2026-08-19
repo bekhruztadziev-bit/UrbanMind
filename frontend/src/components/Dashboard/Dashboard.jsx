@@ -5,7 +5,7 @@ import { AIExplanation } from './AIExplanation'
 import { CandidateList } from './CandidateList'
 import { EnvironmentPanel } from './EnvironmentPanel'
 import { useEnvironment } from '../../hooks/useEnvironment'
-import { staggerEnter } from '../../utils/motion'
+import { animateEnter, staggerEnter, animateHighlight, MOTION } from '../../utils/motion'
 
 export function Dashboard({
   t,
@@ -32,17 +32,31 @@ export function Dashboard({
   const envData = useEnvironment()
   const sidebarRef = useRef(null)
   const resultsRef = useRef(null)
+  const initialLoadRef = useRef(true)
 
+  // Staged initial load sequence (Phase 1 to Phase 5)
   useEffect(() => {
     if (sidebarRef.current) {
       const cards = sidebarRef.current.querySelectorAll('.panel-card')
-      staggerEnter(cards, 45)
+      staggerEnter(cards, { baseDelay: MOTION.staggerSmall, duration: MOTION.emphasis, y: 12 })
     }
     if (resultsRef.current) {
       const cards = resultsRef.current.querySelectorAll('.panel-card')
-      staggerEnter(cards, 60)
+      staggerEnter(cards, { baseDelay: MOTION.staggerMedium, duration: MOTION.emphasis, y: 12 })
     }
   }, [])
+
+  // Coordinated scenario / optimization transition
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false
+      return
+    }
+    if (optResult && resultsRef.current) {
+      const topCard = resultsRef.current.querySelector('.panel-card')
+      if (topCard) animateHighlight(topCard, { duration: MOTION.emphasis })
+    }
+  }, [optResult])
 
   return (
     <>

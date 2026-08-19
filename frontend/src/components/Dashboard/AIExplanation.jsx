@@ -1,7 +1,16 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+import { staggerEnter, MOTION } from '../../utils/motion'
 
 export function AIExplanation({ t, optResult, aiState = 'READY', aiData = null, aiError = '', onRunAIExplanation }) {
   const currentAI = aiData || optResult?.ai
+  const contentRef = useRef(null)
+
+  useEffect(() => {
+    if (currentAI && contentRef.current) {
+      const blocks = contentRef.current.children
+      staggerEnter(blocks, { baseDelay: MOTION.staggerMedium, duration: MOTION.normal, y: 8 })
+    }
+  }, [currentAI])
 
   return (
     <>
@@ -32,7 +41,7 @@ export function AIExplanation({ t, optResult, aiState = 'READY', aiData = null, 
             )}
           </div>
         ) : currentAI ? (
-          <div className="ai-content-body">
+          <div className="ai-content-body" ref={contentRef}>
             {/* 1. Assessment */}
             <div className="ai-assessment-block">
               <span className="ai-block-title">

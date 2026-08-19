@@ -1,20 +1,33 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { animateHighlight, animateTokenFlash, MOTION } from '../../utils/motion';
 
 export function EnvironmentPanel({ t, language, envData }) {
+  const panelRef = useRef(null);
+  const badgeRef = useRef(null);
+  const prevQualityRef = useRef(envData?.currentData?.data_quality);
+
+  useEffect(() => {
+    if (envData?.currentData?.data_quality !== prevQualityRef.current) {
+      prevQualityRef.current = envData?.currentData?.data_quality;
+      if (panelRef.current) animateHighlight(panelRef.current, { duration: MOTION.normal });
+      if (badgeRef.current) animateTokenFlash(badgeRef.current);
+    }
+  }, [envData]);
+
   if (!envData) return null;
 
   const { currentData, isAvailable } = envData;
 
   const renderStatusBadge = () => {
     if (!currentData || !isAvailable) {
-      return <span className="env-status-badge unavailable">{t.envUnavailable || 'Unavailable'}</span>;
+      return <span ref={badgeRef} className="env-status-badge unavailable">{t.envUnavailable || 'Unavailable'}</span>;
     }
     
     switch (currentData.data_quality) {
-      case 'LIVE': return <span className="env-status-badge live">{t.envLive || 'Live'}</span>;
-      case 'RECENT': return <span className="env-status-badge recent">{t.envRecent || 'Recent'}</span>;
-      case 'STALE': return <span className="env-status-badge stale">{t.envStale || 'Stale'}</span>;
-      default: return <span className="env-status-badge unavailable">{t.envUnavailable || 'Unavailable'}</span>;
+      case 'LIVE': return <span ref={badgeRef} className="env-status-badge live">{t.envLive || 'Live'}</span>;
+      case 'RECENT': return <span ref={badgeRef} className="env-status-badge recent">{t.envRecent || 'Recent'}</span>;
+      case 'STALE': return <span ref={badgeRef} className="env-status-badge stale">{t.envStale || 'Stale'}</span>;
+      default: return <span ref={badgeRef} className="env-status-badge unavailable">{t.envUnavailable || 'Unavailable'}</span>;
     }
   };
 
@@ -43,7 +56,7 @@ export function EnvironmentPanel({ t, language, envData }) {
   };
 
   return (
-    <div className="panel-card environment-panel full-width-card mt-3">
+    <div className="panel-card environment-panel full-width-card mt-3" ref={panelRef}>
       <div className="env-header">
         <div className="env-title-group">
           <span className="eyebrow">{t.tashkent || 'TASHKENT'}</span>

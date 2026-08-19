@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
+import { animateHighlight, animateTokenFlash, MOTION } from '../../utils/motion'
 
 const CATEGORY_MAP_RU = {
   signal_timing: 'настройка сигналов',
@@ -20,6 +21,18 @@ const CATEGORY_MAP_EN = {
 
 export function RecommendationPanel({ t, selectedCandidate, language, onTestInExplore }) {
   const isRu = language === 'ru'
+  const panelRef = useRef(null)
+  const badgeRef = useRef(null)
+  const prevCandidateIdRef = useRef(selectedCandidate?.id)
+
+  useEffect(() => {
+    if (selectedCandidate && selectedCandidate.id !== prevCandidateIdRef.current) {
+      prevCandidateIdRef.current = selectedCandidate.id
+      if (panelRef.current) animateHighlight(panelRef.current, { duration: MOTION.normal })
+      if (badgeRef.current) animateTokenFlash(badgeRef.current)
+    }
+  }, [selectedCandidate])
+
   const isSimulated = selectedCandidate?.evaluation_mode === 'SIMULATED'
   const modeLabel = isSimulated
     ? (isRu ? 'СМОДЕЛИРОВАНО' : 'SIMULATED')
@@ -49,11 +62,11 @@ export function RecommendationPanel({ t, selectedCandidate, language, onTestInEx
     : selectedCandidate?.selected_reason
 
   return (
-    <div className="panel-card">
+    <div className="panel-card" ref={panelRef}>
       <div className="card-header-with-badge">
         <h3>{t.recommendedIntervention || 'Recommended Intervention'}</h3>
         {selectedCandidate?.evaluation_mode && (
-          <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`}>
+          <span ref={badgeRef} className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`}>
             {modeLabel}
           </span>
         )}

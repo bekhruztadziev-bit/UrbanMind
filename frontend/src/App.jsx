@@ -134,7 +134,7 @@ function App() {
       <>
         <AmbientBackground />
         <FAQ t={t} setCurrentView={setCurrentView} toggleLanguage={toggleLanguage} onOpenIntro={() => setShowIntro(true)} />
-        <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
+        <HeroIntro t={t} language={language} setLanguage={setLanguage} toggleLanguage={toggleLanguage} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       </>
     )
   }
@@ -153,7 +153,7 @@ function App() {
           presentationMode={presentationMode}
           onOpenIntro={() => setShowIntro(true)}
         />
-        <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
+        <HeroIntro t={t} language={language} setLanguage={setLanguage} toggleLanguage={toggleLanguage} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       </>
     )
   }
@@ -170,7 +170,7 @@ function App() {
           setDisplayedResult={experiment.setDisplayedResult}
           onOpenIntro={() => setShowIntro(true)}
         />
-        <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
+        <HeroIntro t={t} language={language} setLanguage={setLanguage} toggleLanguage={toggleLanguage} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       </>
     )
   }
@@ -178,7 +178,7 @@ function App() {
   return (
     <>
       <AmbientBackground />
-      <HeroIntro t={t} language={language} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
+      <HeroIntro t={t} language={language} setLanguage={setLanguage} toggleLanguage={toggleLanguage} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
       <div className="app-shell">
         <div className="map-panel">
           <Header 

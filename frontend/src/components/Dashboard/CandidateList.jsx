@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { animateEnter, staggerEnter, animateHighlight } from '../../utils/motion'
+import { animateEnter, staggerEnter, animateHighlight, MOTION } from '../../utils/motion'
 
 export function CandidateList({ t, optResult, selectedCandidate, setSelectedCandidateId, getIntersectionForTrafficLight, setSelectedId, language = 'en' }) {
   const isRu = language === 'ru'
@@ -8,12 +8,12 @@ export function CandidateList({ t, optResult, selectedCandidate, setSelectedCand
 
   useEffect(() => {
     if (containerRef.current) {
-      animateEnter(containerRef.current, 40)
+      animateEnter(containerRef.current, { duration: MOTION.normal })
     }
     if (listRef.current) {
       const cards = listRef.current.querySelectorAll('.candidate-card')
       if (cards.length > 0) {
-        staggerEnter(cards, 60)
+        staggerEnter(cards, { baseDelay: MOTION.staggerSmall, duration: MOTION.normal, y: 8 })
       }
     }
   }, [optResult])

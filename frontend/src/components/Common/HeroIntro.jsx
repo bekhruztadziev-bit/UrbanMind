@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 
-export function HeroIntro({ t, language, isOpen, onClose, onSelectView }) {
+export function HeroIntro({ t, language, setLanguage, toggleLanguage, isOpen, onClose, onSelectView }) {
   const [dontShowAgain, setDontShowAgain] = useState(false)
   const isRu = language === 'ru'
 
@@ -33,9 +33,35 @@ export function HeroIntro({ t, language, isOpen, onClose, onSelectView }) {
   return (
     <div className="hero-intro-overlay" onClick={handleClose}>
       <div className="hero-intro-modal" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="hero-intro-close" onClick={handleClose} aria-label="Close intro">
-          ✕
-        </button>
+        {/* Top Control Bar with Language Switcher and Close Button */}
+        <div className="hero-intro-topbar">
+          <div className="hero-lang-switch">
+            <button
+              type="button"
+              className={`hero-lang-btn ${language === 'ru' ? 'active' : ''}`}
+              onClick={() => {
+                if (setLanguage) setLanguage('ru')
+                else if (language !== 'ru' && toggleLanguage) toggleLanguage()
+              }}
+            >
+              🇷🇺 RU
+            </button>
+            <button
+              type="button"
+              className={`hero-lang-btn ${language === 'en' ? 'active' : ''}`}
+              onClick={() => {
+                if (setLanguage) setLanguage('en')
+                else if (language !== 'en' && toggleLanguage) toggleLanguage()
+              }}
+            >
+              🇬🇧 EN
+            </button>
+          </div>
+
+          <button type="button" className="hero-intro-close" onClick={handleClose} aria-label="Close intro">
+            ✕
+          </button>
+        </div>
 
         {/* Brand Glow Logo */}
         <div className="hero-intro-header">

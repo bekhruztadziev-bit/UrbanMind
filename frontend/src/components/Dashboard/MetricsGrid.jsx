@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react'
-import { useAnimatedNumber } from '../../utils/motion'
+import React, { useMemo, useEffect, useRef } from 'react'
+import { useAnimatedNumber, animateHighlight, MOTION } from '../../utils/motion'
 
 function AnimatedMetric({ value, suffix = '', decimals = 0 }) {
-  const formattedNumber = useAnimatedNumber(value, decimals, 450)
+  const formattedNumber = useAnimatedNumber(value, decimals, MOTION.emphasis)
   return (
     <strong className="metric-val">
       {formattedNumber}{suffix}
@@ -11,6 +11,16 @@ function AnimatedMetric({ value, suffix = '', decimals = 0 }) {
 }
 
 export function MetricsGrid({ t, metrics, optResult }) {
+  const gridRef = useRef(null)
+  const prevSpeedRef = useRef(metrics.average_speed_kmh)
+
+  useEffect(() => {
+    if (prevSpeedRef.current !== metrics.average_speed_kmh && gridRef.current) {
+      prevSpeedRef.current = metrics.average_speed_kmh
+      animateHighlight(gridRef.current, { duration: MOTION.normal })
+    }
+  }, [metrics.average_speed_kmh])
+
   const liveVehicleCount = useMemo(() => {
     const peak = Number.isFinite(metrics.max_vehicle_count) ? metrics.max_vehicle_count : 0
     return peak ? Math.max(12, Math.round(peak * 0.7)) : 0
