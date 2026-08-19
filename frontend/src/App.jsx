@@ -43,10 +43,10 @@ const fallbackDistrict = {
 }
 
 function App() {
-  const { language, toggleLanguage, t } = useLanguage('en')
+  const { language, setLanguage, toggleLanguage, t } = useLanguage('en')
   
   const [health, setHealth] = useState(null)
-  const [mahalla, setMahalla] = useState(null)
+  const [mahalla, setMahalla] = useState(fallbackDistrict)
   const scenario = 'midday'
   const [selectedId, setSelectedId] = useState('intersection_1')
   const [currentView, setCurrentView] = useState('insights')
