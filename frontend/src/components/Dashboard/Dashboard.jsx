@@ -38,11 +38,11 @@ export function Dashboard({
   useEffect(() => {
     if (sidebarRef.current) {
       const cards = sidebarRef.current.querySelectorAll('.panel-card')
-      staggerEnter(cards, { baseDelay: MOTION.staggerSmall, duration: MOTION.emphasis, y: 12 })
+      staggerEnter(cards, { baseDelay: MOTION.staggerSmall, duration: MOTION.normal, y: 18 })
     }
     if (resultsRef.current) {
       const cards = resultsRef.current.querySelectorAll('.panel-card')
-      staggerEnter(cards, { baseDelay: MOTION.staggerMedium, duration: MOTION.emphasis, y: 12 })
+      staggerEnter(cards, { baseDelay: MOTION.staggerMedium, duration: MOTION.normal, y: 18 })
     }
   }, [])
 

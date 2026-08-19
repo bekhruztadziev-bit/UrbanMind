@@ -6,12 +6,12 @@ import { useState, useEffect, useRef } from 'react'
  */
 export const MOTION = {
   instant: 120,
-  fast: 180,
-  normal: 280,
-  emphasis: 420,
-  reveal: 520,
-  staggerSmall: 45,
-  staggerMedium: 70,
+  fast: 200,
+  normal: 360,
+  emphasis: 520,
+  reveal: 650,
+  staggerSmall: 65,
+  staggerMedium: 95,
   easeStandard: 'cubic-bezier(0.2, 0, 0, 1)',
   easeEmphasized: 'cubic-bezier(0.16, 1, 0.3, 1)',
   easeExit: 'cubic-bezier(0.4, 0, 1, 1)',
@@ -26,7 +26,7 @@ export const isReducedMotion = () => {
 }
 
 /**
- * Animate single element entering smoothly into view.
+ * Animate single element entering smoothly into view with fill: 'both'.
  * @param {HTMLElement} element - Target DOM element
  * @param {Object} options - Optional animation parameters
  */
@@ -36,9 +36,9 @@ export const animateEnter = (element, options = {}) => {
   const {
     delay = 0,
     duration = MOTION.normal,
-    y = 12,
+    y = 18,
     easing = MOTION.easeEmphasized,
-    fill = 'forwards',
+    fill = 'both',
   } = typeof options === 'number' ? { delay: options } : options
 
   try {
@@ -67,8 +67,9 @@ export const staggerEnter = (elements, options = {}) => {
   const {
     baseDelay = MOTION.staggerSmall,
     duration = MOTION.normal,
-    y = 8,
+    y = 14,
     easing = MOTION.easeEmphasized,
+    fill = 'both',
   } = typeof options === 'number' ? { baseDelay: options } : options
 
   const list = Array.isArray(elements) ? elements : Array.from(elements || [])
@@ -81,6 +82,7 @@ export const staggerEnter = (elements, options = {}) => {
         duration,
         y,
         easing,
+        fill,
       })
       if (anim) animations.push(anim)
     }
@@ -99,7 +101,7 @@ export const animateExit = (element, options = {}) => {
 
   const {
     duration = MOTION.fast,
-    y = -4,
+    y = -6,
     easing = MOTION.easeExit,
     fill = 'forwards',
   } = options
@@ -128,14 +130,14 @@ export const animateHighlight = (element, options = {}) => {
 
   const {
     duration = MOTION.emphasis,
-    easing = MOTION.easeStandard,
-    accentColor = 'var(--accent-primary)',
-    glowColor = 'var(--accent-primary-glow)',
+    easing = MOTION.easeEmphasized,
+    accentColor = 'rgba(56, 189, 248, 0.7)',
+    glowColor = 'rgba(56, 189, 248, 0.12)',
   } = options
 
   try {
     return element.animate([
-      { borderColor: accentColor, backgroundColor: glowColor, transform: 'scale(1.01)' },
+      { borderColor: accentColor, backgroundColor: glowColor, transform: 'scale(1.02)' },
       { borderColor: 'var(--border-color)', backgroundColor: 'transparent', transform: 'scale(1)' },
     ], {
       duration,
@@ -154,8 +156,8 @@ export const animateTokenFlash = (element) => {
 
   try {
     return element.animate([
-      { opacity: 0.6, transform: 'scale(0.96)' },
-      { opacity: 1, transform: 'scale(1.05)', filter: 'brightness(1.2)' },
+      { opacity: 0.5, transform: 'scale(0.92)' },
+      { opacity: 1, transform: 'scale(1.08)', filter: 'brightness(1.3)' },
       { opacity: 1, transform: 'scale(1)', filter: 'brightness(1)' },
     ], {
       duration: MOTION.normal,
@@ -175,17 +177,17 @@ export const animateTokenFlash = (element) => {
  * @param {number} decimals - Precision decimals
  * @param {number} duration - Interpolation duration in ms
  */
-export function useAnimatedNumber(targetValue, decimals = 0, duration = MOTION.emphasis) {
+export function useAnimatedNumber(targetValue, decimals = 0, duration = MOTION.reveal) {
   const numTarget = typeof targetValue === 'number' && !isNaN(targetValue) ? targetValue : 0
-  const [displayValue, setDisplayValue] = useState(numTarget)
-  const prevValueRef = useRef(numTarget)
+  const [displayValue, setDisplayValue] = useState(0)
+  const prevValueRef = useRef(0)
   const animRef = useRef(null)
 
   useEffect(() => {
     const startVal = prevValueRef.current
     const endVal = numTarget
 
-    if (isReducedMotion() || startVal === endVal) {
+    if (isReducedMotion()) {
       setDisplayValue(endVal)
       prevValueRef.current = endVal
       return
@@ -197,8 +199,8 @@ export function useAnimatedNumber(targetValue, decimals = 0, duration = MOTION.e
     const updateNumber = (now) => {
       const elapsed = now - startTime
       const progress = Math.min(elapsed / duration, 1)
-      // Ease-out quartic curve for precise settling
-      const ease = 1 - Math.pow(1 - progress, 4)
+      // Ease-out cubic curve for visible and smooth numeric counting
+      const ease = 1 - Math.pow(1 - progress, 3)
       const current = startVal + (endVal - startVal) * ease
 
       setDisplayValue(current)
