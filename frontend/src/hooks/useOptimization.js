@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { fetchMetrics, fetchOptimize, fetchAIExplanation } from '../api/client'
 import { normalizeMetrics, normalizeOptimizationResult, normalizeAIResponse } from '../utils/normalize'
 
@@ -21,8 +21,9 @@ export function useOptimization(mahalla, scenario, language = 'en') {
   const [aiError, setAiError] = useState('')
   const prevLangRef = useRef(language)
   const prevPolicyRef = useRef(activePolicy)
+  const initialMetricsLoadedRef = useRef(false)
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = useCallback(async () => {
     setLoading(true)
     setOptError('')
     try {
@@ -38,7 +39,13 @@ export function useOptimization(mahalla, scenario, language = 'en') {
     } finally {
       setLoading(false)
     }
-  }
+  }, [scenario, language])
+
+  useEffect(() => {
+    if (!mahalla || initialMetricsLoadedRef.current) return
+    initialMetricsLoadedRef.current = true
+    void handleAnalyze()
+  }, [mahalla, handleAnalyze])
 
   const handleOptimize = async (onSuccess, targetPolicy = activePolicy, targetWeights = customWeights) => {
     setLoading(true)

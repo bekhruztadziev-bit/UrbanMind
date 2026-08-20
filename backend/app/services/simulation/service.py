@@ -77,7 +77,26 @@ def _run_locked_canonical_optimization(policy: str, custom_weights: Optional[dic
 
 
 def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", intervention: Optional[dict[str, Any]] = None, simulation_id: Optional[str] = None, seed: Optional[int] = None) -> SimulationMetrics:
-    """Orchestrates a single simulation run and metric calculation."""
+    """Return live SUMO metrics or the reviewed canonical baseline in cloud mode.
+
+    A serverless deployment cannot execute SUMO. Returning the locked baseline
+    prevents the dashboard from showing zero-valued placeholders while keeping
+    the result explicitly tied to precomputed simulation evidence.
+    """
+    if not _is_sumo_available():
+        artifact_result = _load_locked_canonical_experiment_artifact()
+        baseline = (artifact_result or {}).get("baseline_results", {}).get("1.0x")
+        if not isinstance(baseline, dict):
+            raise RuntimeError("Canonical baseline artifact is unavailable or failed integrity verification.")
+        return {
+            **baseline,
+            "evidence_mode": "PRECOMPUTED_SIMULATION_ARTIFACT",
+            "artifact_type": "PRECOMPUTED_SIMULATION_ARTIFACT",
+            "runtime_status": "SUMO_UNAVAILABLE_LOCKED_EVIDENCE",
+            "artifact_experiment_id": artifact_result.get("experiment_id"),
+            "demand_condition": "1.0x",
+        }
+
     request: SimulationRequest = {
         "steps": steps,
         "warmup_steps": warmup_steps,

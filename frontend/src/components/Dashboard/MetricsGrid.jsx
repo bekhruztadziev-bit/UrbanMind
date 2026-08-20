@@ -24,7 +24,11 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
     }
   }, [speed])
 
-  const meanWait = safeNumber(metrics?.mean_completed_vehicle_waiting_seconds ?? metrics?.average_waiting_seconds, 0)
+  // The dashboard's headline delay is the run-wide average waiting metric.
+  // Completed-trip waiting can legitimately be zero in a short run even while
+  // active vehicles have accumulated delay, so it is not suitable as the
+  // headline fallback for the canonical evidence artifact.
+  const meanWait = safeNumber(metrics?.average_waiting_seconds ?? metrics?.mean_completed_vehicle_waiting_seconds, 0)
   const travelTime = safeNumber(metrics?.average_travel_time_seconds, meanWait + 34.0)
   const queueLength = safeNumber(metrics?.mean_queue_length_meters, meanWait * 1.55)
   const stops = safeNumber(metrics?.stops_per_vehicle, 1.2)
@@ -36,7 +40,7 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
   const access = safeNumber(metrics?.accessibility_score, 100)
 
   const optWait = safeNumber(
-    optResult?.baseline?.mean_completed_vehicle_waiting_seconds ?? optResult?.baseline?.average_waiting_seconds,
+    optResult?.baseline?.average_waiting_seconds ?? optResult?.baseline?.mean_completed_vehicle_waiting_seconds,
     meanWait
   )
   const optSpeed = safeNumber(optResult?.baseline?.average_speed_kmh, speed)
