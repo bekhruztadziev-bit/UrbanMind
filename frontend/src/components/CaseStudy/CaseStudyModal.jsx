@@ -23,6 +23,7 @@ export function CaseStudyModal({
   const [activeTab, setActiveTab] = useState('brief')
   const [caseStudy, setCaseStudy] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [isExporting, setIsExporting] = useState(false)
   const [auditMode, setAuditMode] = useState(false)
   const [selectedProvenance, setSelectedProvenance] = useState(null)
@@ -37,11 +38,16 @@ export function CaseStudyModal({
 
   const loadCaseStudy = useCallback(async () => {
     setLoading(true)
+    setLoadError('')
     try {
       const data = await fetchCanonicalCaseStudy(language)
       setCaseStudy(data)
     } catch (err) {
       console.error('Failed to load canonical case study:', err)
+      setCaseStudy(null)
+      setLoadError(isRu
+        ? 'Канонический кейс-стади временно недоступен. Повторите попытку позже.'
+        : 'The canonical Case Study is temporarily unavailable. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -365,6 +371,31 @@ export function CaseStudyModal({
           {loading && (
             <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
               ⏳ {isRu ? 'Загрузка кейс-стади…' : 'Loading Case Study…'}
+            </div>
+          )}
+
+          {!loading && loadError && (
+            <div
+              role="alert"
+              style={{
+                padding: '1.25rem',
+                borderRadius: '10px',
+                border: '1px solid rgba(248, 113, 113, 0.4)',
+                background: 'rgba(127, 29, 29, 0.18)',
+                color: '#fecaca',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>{isRu ? 'Ошибка загрузки' : 'Loading error'}</strong>
+              <p style={{ margin: '0.45rem 0 0' }}>{loadError}</p>
+              <button
+                type="button"
+                className="ghost-button"
+                style={{ marginTop: '0.85rem' }}
+                onClick={loadCaseStudy}
+              >
+                {isRu ? 'Повторить' : 'Retry'}
+              </button>
             </div>
           )}
 

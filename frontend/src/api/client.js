@@ -184,7 +184,22 @@ export async function fetchCanonicalExperiment() {
 
 export async function fetchCanonicalCaseStudy(language = 'en') {
   const response = await fetch(`${API_BASE}/case-studies/canonical?language=${encodeURIComponent(language)}`)
-  return handleResponse(response)
+  try {
+    return await handleResponse(response)
+  } catch (apiError) {
+    // Vercel deployments without the SUMO runtime can still serve the locked,
+    // reviewed canonical artifact shipped with the frontend. This is not a
+    // synthetic fallback: it is the same precomputed simulation evidence used
+    // by the backend artifact-backed Case Study endpoint.
+    const fallbackResponse = await fetch('/canonical-case-study.json', { cache: 'no-store' })
+    if (!fallbackResponse.ok) throw apiError
+    const fallback = await fallbackResponse.json()
+    return {
+      ...fallback,
+      artifact_type: fallback.artifact_type || 'PRECOMPUTED_SIMULATION_ARTIFACT',
+      delivery_mode: 'STATIC_ARTIFACT_FALLBACK',
+    }
+  }
 }
 
 export async function fetchCaseStudies(language = 'en') {

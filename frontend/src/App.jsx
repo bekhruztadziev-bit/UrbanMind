@@ -220,7 +220,20 @@ function App() {
       <>
         <AmbientBackground />
 
-        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '1.2rem', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div
+          className="pilot-shell"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            maxWidth: '1440px',
+            margin: '0 auto',
+            padding: '1.2rem',
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+        >
           <Header
             t={t}
             currentView={currentView}
