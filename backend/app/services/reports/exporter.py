@@ -519,7 +519,7 @@ def export_report_html(report: DecisionReport, language: str = "en") -> str:
                 <p style="margin: 0;"><strong>{('Длительность:' if is_ru else 'Steps:')}</strong> {methodology.get('duration_steps', 300)} ({methodology.get('warmup_steps', 0)} warmup)</p>
             </div>
             <div>
-                <p style="margin: 0 0 4px 0;"><strong>{('Классы данных:' if is_ru else 'Data Classes:')}</strong> DIRECT (TraCI), SIMULATED (HBEFA), OBSERVED (Sensors), DERIVED (Indices)</p>
+                <p style="margin: 0 0 4px 0;"><strong>{('Классы данных:' if is_ru else 'Data Classes:')}</strong> SIMULATED (SUMO/TraCI), OBSERVED (Sensors), DERIVED (Indices)</p>
                 <p style="margin: 0; color: #64748b;">
                     {('Откалибровано под геометрию Ташкента. Показания датчиков воздуха представляют фоновые натурные уровни.' if is_ru else 'Calibrated to Tashkent corridor geometry. Physical air sensors reflect ambient background levels.')}
                 </p>

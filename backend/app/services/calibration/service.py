@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import csv
+import hashlib
+import io
+import json
 import math
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -20,23 +24,44 @@ from app.services.calibration.models import (
 )
 from app.services.simulation.statistics import evaluate_geh_batch, compute_geh
 from app.services.spatial.hierarchy import get_default_spatial_scope
+from app.services.calibration.mappings import get_mapping_registry
 
 
-KNOWN_INTERSECTION_IDS = {
-    "intersection_1", "intersection_2", "intersection_3",
-    "intersection_4", "intersection_5", "intersection_6",
-    "cluster_1", "cluster_2", "cluster_3",
-    "cluster_4", "cluster_5", "cluster_6"
-}
 VALID_MOVEMENTS = {"through", "left", "right", "u_turn"}
-VALID_VEHICLE_TYPES = {"passenger_car", "bus", "truck", "motorcycle", "all"}
+# The configured SUMO fleet is passenger-only.  Other field classes are
+# retained by the collector upstream but are not yet comparable here.
+VALID_VEHICLE_TYPES = {"passenger_car"}
 VALID_PURPOSES = {"CALIBRATION", "VALIDATION_HOLDOUT"}
+VALID_FIELD_QUALITY_FLAGS = {"HIGH_PRECISION", "STANDARD_TELEMETRY"}
 
 
 _FIELD_DATASETS_STORE: Dict[str, FieldObservationDataset] = {}
 _ACTIVE_CALIBRATION_STATUS: CalibrationStatus = "UNCALIBRATED"
 _ACTIVE_CALIBRATION_DATASET_ID: Optional[str] = None
 _ACTIVE_VALIDATION_DATASET_ID: Optional[str] = None
+
+
+def _canonical_observation_payload(record: Dict[str, Any], campaign_id: str, network_version: str) -> Dict[str, Any]:
+    """Return only calibration-relevant immutable identity fields for hashing."""
+    return {
+        "campaign_id": campaign_id,
+        "network_version": network_version,
+        "mapping_id": record.get("mapping_id"),
+        "timestamp": record.get("timestamp"),
+        "measurement_window_id": record.get("measurement_window_id"),
+        "intersection_id": record.get("intersection_id"),
+        "approach_id": record.get("approach_id"),
+        "movement": record.get("movement"),
+        "interval_minutes": record.get("interval_minutes"),
+        "vehicle_class": record.get("vehicle_class"),
+        "vehicle_count": record.get("vehicle_count"),
+        "source": record.get("source"),
+    }
+
+
+def _fingerprint(payload: Dict[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
 def compute_validation_metrics(
@@ -52,7 +77,7 @@ def compute_validation_metrics(
     - MAPE: Mean Absolute Percentage Error (computed only over strictly positive observed values)
     - Bias: Mean Error (simulated - observed)
     - Pearson Correlation: r
-    - GEH: Geoffrey E. Havers statistic (UK WebTAG / DMRB standard: GEH < 5 for >= 85% of flows)
+    - GEH: Geoffrey E. Havers statistic (evaluated against UrbanMind's configured acceptance criterion)
     
     Handles empty series and zero/near-zero edge cases safely.
     """
@@ -65,6 +90,7 @@ def compute_validation_metrics(
             "rmse": None,
             "mape": None,
             "bias": None,
+            "mean_bias_error": None,
             "correlation": None,
             "geh_mean": None,
             "geh_max": None,
@@ -74,9 +100,13 @@ def compute_validation_metrics(
             "methodology_note": "Insufficient paired data points for validation calculation.",
         }
 
-    n = min(len(observed_series), len(simulated_series))
-    obs = [float(x) for x in observed_series[:n]]
-    sim = [float(x) for x in simulated_series[:n]]
+    if len(observed_series) != len(simulated_series):
+        raise ValueError("Observed and simulated series must be explicitly aligned and have equal length.")
+    n = len(observed_series)
+    obs = [float(x) for x in observed_series]
+    sim = [float(x) for x in simulated_series]
+    if any(value < 0 for value in obs + sim):
+        raise ValueError("Validation flow values must be non-negative.")
 
     if n == 0:
         return {
@@ -87,6 +117,7 @@ def compute_validation_metrics(
             "rmse": None,
             "mape": None,
             "bias": None,
+            "mean_bias_error": None,
             "correlation": None,
             "geh_mean": None,
             "geh_max": None,
@@ -123,7 +154,7 @@ def compute_validation_metrics(
         correlation = round(cov / (math.sqrt(var_o) * math.sqrt(var_s)), 3)
         correlation = max(-1.0, min(1.0, correlation))
     else:
-        correlation = 1.0 if (abs(var_o) < 1e-9 and abs(var_s) < 1e-9 and abs(mean_o - mean_s) < 1e-9) else 0.0
+        correlation = None
 
     # GEH Batch Evaluation
     pairs = list(zip(sim, obs))
@@ -137,121 +168,203 @@ def compute_validation_metrics(
         "rmse": rmse,
         "mape": mape,
         "bias": bias,
+        "mean_bias_error": bias,
         "correlation": correlation,
         "geh_mean": geh_res.get("mean_geh"),
         "geh_max": geh_res.get("max_geh"),
         "geh_pct_under_5": geh_res.get("pct_under_5"),
-        "geh_pass": geh_res.get("is_webtag_compliant", False),
+        "geh_pass": geh_res.get("is_criteria_met", False),
         "is_applicable": True,
         "methodology_note": (
             f"Validation metrics calculated over {n} flow pairs. "
-            f"GEH < 5.0 in {geh_res.get('pct_under_5', 0)}% of flows (UK WebTAG standard: >= 85%)."
+            f"GEH < 5.0 in {geh_res.get('pct_under_5', 0)}% of flows (UrbanMind configured criterion informed by traffic-assignment guidance: >= 85%)."
         ),
     }
 
 
+def parse_field_observation_import(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse a JSON dataset or a CSV payload without silently changing values."""
+    csv_text = payload.get("csv_text") or (payload.get("content") if str(payload.get("format", "")).lower() == "csv" else None)
+    if not csv_text:
+        return payload
+    try:
+        rows = list(csv.DictReader(io.StringIO(str(csv_text))))
+    except csv.Error as exc:
+        return {"dataset_id": payload.get("dataset_id", ""), "observations": [], "parse_error": f"CSV parse error: {exc}"}
+    return {
+        "dataset_id": payload.get("dataset_id") or (rows[0].get("dataset_id") if rows else ""),
+        "name": payload.get("name", "Field Turning Movement Counts"),
+        "description": payload.get("description", ""),
+        "purpose": payload.get("purpose") or (rows[0].get("purpose") if rows else ""),
+        "campaign_id": payload.get("campaign_id") or (rows[0].get("campaign_id") if rows else ""),
+        "simulation_campaign_id": payload.get("simulation_campaign_id") or (rows[0].get("simulation_campaign_id") if rows else ""),
+        "observations": rows,
+    }
+
+
 def validate_field_observations(raw_dataset: Dict[str, Any]) -> FieldObservationDataset:
-    """
-    Validates field observation dataset for format, schema, intersection IDs,
-    positive vehicle counts, sampling intervals, and dataset purpose.
-    """
+    """Strictly validate genuine field observations against the mapping registry."""
+    raw_dataset = parse_field_observation_import(raw_dataset)
     errors: List[str] = []
-    dataset_id = str(raw_dataset.get("dataset_id") or f"DS-VAL-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}")
-    name = str(raw_dataset.get("name") or "Field Turning Movement Observation Dataset")
-    purpose_raw = str(raw_dataset.get("purpose", "CALIBRATION")).upper()
-    purpose: DatasetPurpose = "VALIDATION_HOLDOUT" if "HOLDOUT" in purpose_raw or "VALIDATION" in purpose_raw else "CALIBRATION"
-    
-    records_raw = raw_dataset.get("observations", [])
-    if not isinstance(records_raw, list) or len(records_raw) == 0:
-        errors.append("Dataset must contain a non-empty 'observations' list.")
+    diagnostics: List[Dict[str, Any]] = []
+    registry = get_mapping_registry()
+    dataset_id = str(raw_dataset.get("dataset_id") or "").strip()
+    purpose = str(raw_dataset.get("purpose") or "").strip().upper()
+    campaign_id = str(raw_dataset.get("campaign_id") or "").strip()
+    simulation_campaign_id = str(raw_dataset.get("simulation_campaign_id") or "").strip()
+    if not dataset_id:
+        errors.append("dataset_id is required.")
+    if purpose not in VALID_PURPOSES:
+        errors.append("purpose must be exactly CALIBRATION or VALIDATION_HOLDOUT.")
+    if not campaign_id:
+        errors.append("campaign_id is required and identifies the field-survey campaign.")
+    if not simulation_campaign_id:
+        errors.append("simulation_campaign_id is required and must identify the comparable SUMO measurement campaign.")
+    rows = raw_dataset.get("observations")
+    if raw_dataset.get("parse_error"):
+        errors.append(str(raw_dataset["parse_error"]))
+    if not isinstance(rows, list) or not rows:
+        errors.append("Dataset must contain a non-empty observations list.")
+        rows = []
 
     valid_records: List[FieldObservationRecord] = []
-    unique_intersections = set()
+    seen = set()
     total_counts = 0
-    seen_keys = set()
-
-    for idx, r in enumerate(records_raw):
-        if not isinstance(r, dict):
-            errors.append(f"Observation #{idx} is not a valid JSON object.")
+    unique_intersections = set()
+    required = {
+        "timestamp", "intersection_id", "approach_id", "movement", "interval_minutes",
+        "vehicle_count", "vehicle_class", "source", "quality", "notes",
+    }
+    for index, raw in enumerate(rows, start=1):
+        row_errors: List[str] = []
+        if not isinstance(raw, dict):
+            diagnostics.append({"row": index, "status": "REJECTED", "errors": ["Row is not an object."], "mapping": None})
+            errors.append(f"Row {index}: Row is not an object.")
             continue
-
-        rec_has_error = False
-
-        ix = str(r.get("intersection_id", "")).strip().lower()
-        if not ix or ix not in KNOWN_INTERSECTION_IDS:
-            errors.append(f"Observation #{idx}: Unknown intersection_id '{ix}'. Must match corridor intersections.")
-            rec_has_error = True
-
-        mov = str(r.get("movement", "through")).strip().lower()
-        if mov not in VALID_MOVEMENTS:
-            errors.append(f"Observation #{idx}: Invalid movement '{mov}'. Must be one of {sorted(list(VALID_MOVEMENTS))}.")
-            rec_has_error = True
-
-        count = r.get("vehicle_count")
-        if count is None or not isinstance(count, (int, float)) or count < 0:
-            errors.append(f"Observation #{idx}: vehicle_count must be a non-negative number.")
-            rec_has_error = True
-
-        interval = int(r.get("interval_minutes", 15))
-        if interval < 1 or interval > 120:
-            errors.append(f"Observation #{idx}: interval_minutes must be between 1 and 120.")
-            rec_has_error = True
-
-        dedup_key = f"{ix}_{r.get('approach_id', 'main')}_{mov}_{r.get('timestamp', '')}"
-        if dedup_key in seen_keys:
-            errors.append(f"Observation #{idx}: Duplicate observation record for {dedup_key}.")
-            rec_has_error = True
-        seen_keys.add(dedup_key)
-
-        if rec_has_error:
+        missing = sorted(key for key in required if key not in raw or raw.get(key) is None)
+        if missing:
+            row_errors.append(f"Missing required columns: {', '.join(missing)}.")
+        ix = str(raw.get("intersection_id") or "").strip()
+        approach = str(raw.get("approach_id") or "").strip()
+        movement = str(raw.get("movement") or "").strip().lower()
+        mapping = registry.lookup(ix, approach, movement)
+        if movement not in VALID_MOVEMENTS:
+            row_errors.append(f"Invalid movement '{movement}'.")
+        if not ix or not approach:
+            row_errors.append("intersection_id and approach_id are required.")
+        if mapping is None:
+            row_errors.append("No enabled, verified SUMO movement mapping exists for this intersection, approach, and movement.")
+        try:
+            timestamp = str(raw.get("timestamp") or "")
+            datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except ValueError:
+            row_errors.append("timestamp must be ISO-8601.")
+            timestamp = str(raw.get("timestamp") or "")
+        try:
+            interval = int(raw.get("interval_minutes"))
+            if interval < 1 or interval > 120:
+                row_errors.append("interval_minutes must be between 1 and 120.")
+        except (TypeError, ValueError):
+            interval = 0
+            row_errors.append("interval_minutes must be an integer between 1 and 120.")
+        try:
+            count = int(raw.get("vehicle_count"))
+            if isinstance(raw.get("vehicle_count"), bool) or count < 0:
+                row_errors.append("vehicle_count must be a non-negative integer.")
+        except (TypeError, ValueError):
+            count = 0
+            row_errors.append("vehicle_count must be a non-negative integer.")
+        vehicle_class = str(raw.get("vehicle_class") or "").strip().lower()
+        if vehicle_class not in VALID_VEHICLE_TYPES:
+            row_errors.append(f"Invalid vehicle_class '{vehicle_class}'.")
+        if not str(raw.get("source") or "").strip():
+            row_errors.append("source is required.")
+        quality = str(raw.get("quality") or "").strip().upper()
+        if quality not in VALID_FIELD_QUALITY_FLAGS:
+            row_errors.append("quality must be HIGH_PRECISION or STANDARD_TELEMETRY; proxy or synthetic records cannot calibrate the model.")
+        window_id = str(raw.get("measurement_window_id") or f"{timestamp}/{interval}m")
+        duplicate_key = (window_id, ix, approach, movement, vehicle_class, interval)
+        if duplicate_key in seen:
+            row_errors.append("Duplicate observation record.")
+        seen.add(duplicate_key)
+        if row_errors:
+            diagnostics.append({"row": index, "status": "REJECTED", "errors": row_errors, "mapping": mapping.serialize() if mapping else None})
+            errors.extend(f"Row {index}: {message}" for message in row_errors)
             continue
-
-
-        v_type = str(r.get("vehicle_type", "all")).lower()
-        if v_type not in VALID_VEHICLE_TYPES:
-            v_type = "all"
-
-        unique_intersections.add(ix)
-        total_counts += int(count)
-
-        valid_records.append({
-            "observation_id": str(r.get("observation_id") or f"obs_{dataset_id}_{idx}"),
+        observation: FieldObservationRecord = {
+            "observation_id": str(raw.get("observation_id") or f"obs_{dataset_id}_{index}"),
             "dataset_id": dataset_id,
-            "purpose": purpose,
-            "timestamp": str(r.get("timestamp") or datetime.now(timezone.utc).isoformat()),
+            "purpose": purpose,  # type: ignore[typeddict-item]
+            "timestamp": timestamp,
+            "measurement_window_id": window_id,
             "spatial_scope": raw_dataset.get("spatial_scope") or get_default_spatial_scope(),
             "intersection_id": ix,
-            "approach_id": str(r.get("approach_id") or "main"),
-            "movement": mov,  # type: ignore
+            "approach_id": approach,
+            "movement": movement,  # type: ignore[typeddict-item]
+            "mapping_id": mapping.mapping_id,
             "interval_minutes": interval,
-            "vehicle_count": int(count),
-            "vehicle_type": v_type,  # type: ignore
-            "source": str(r.get("source") or "RADAR_DETECTOR"),
-            "quality": r.get("quality", "HIGH_PRECISION"),
-            "notes": str(r.get("notes") or ""),
-        })
-
-    is_valid = len(errors) == 0 and len(valid_records) > 0
-
+            "vehicle_count": count,
+            "vehicle_class": vehicle_class,  # type: ignore[typeddict-item]
+            "source": str(raw["source"]).strip(),
+            "quality": quality,  # type: ignore[typeddict-item]
+            "notes": str(raw.get("notes") or ""),
+        }
+        if mapping is not None:
+            observation["observation_content_hash"] = _fingerprint(
+                _canonical_observation_payload(observation, campaign_id, mapping.network_version)
+            )
+        valid_records.append(observation)
+        diagnostics.append({"row": index, "status": "ACCEPTED", "errors": [], "mapping": mapping.serialize()})
+        unique_intersections.add(ix)
+        total_counts += count
+    observation_hashes = sorted(record.get("observation_content_hash", "") for record in valid_records)
+    dataset_content_hash = _fingerprint({"campaign_id": campaign_id, "observations": observation_hashes}) if observation_hashes else ""
     return {
         "dataset_id": dataset_id,
-        "name": name,
-        "description": str(raw_dataset.get("description") or "Field Turning Movement Counts"),
-        "purpose": purpose,
+        "name": str(raw_dataset.get("name") or "Field Turning Movement Observation Dataset"),
+        "description": str(raw_dataset.get("description") or ""),
+        "campaign_id": campaign_id,
+        "simulation_campaign_id": simulation_campaign_id,
+        "purpose": purpose,  # type: ignore[typeddict-item]
         "uploaded_at": datetime.now(timezone.utc).isoformat(),
         "spatial_scope": raw_dataset.get("spatial_scope") or get_default_spatial_scope(),
         "observations": valid_records,
-        "is_valid": is_valid,
+        "is_valid": not errors and bool(valid_records),
         "validation_errors": errors,
+        "diagnostics": diagnostics,
+        "mapping_coverage": registry.coverage(),
         "total_counts": total_counts,
-        "unique_intersections": sorted(list(unique_intersections)),
-        "time_window": str(raw_dataset.get("time_window") or "08:00 - 09:00 Peak"),
+        "unique_intersections": sorted(unique_intersections),
+        "time_window": str(raw_dataset.get("time_window") or ""),
+        "dataset_content_hash": dataset_content_hash,
+        "observation_content_hashes": observation_hashes,
     }
+
+
+def list_field_observation_datasets() -> List[Dict[str, Any]]:
+    """Return import metadata without re-exposing every raw field record."""
+    return [{
+        "dataset_id": dataset.get("dataset_id"), "name": dataset.get("name"),
+        "purpose": dataset.get("purpose"), "is_valid": dataset.get("is_valid"),
+        "uploaded_at": dataset.get("uploaded_at"), "record_count": len(dataset.get("observations", [])),
+        "diagnostic_count": len(dataset.get("diagnostics", [])),
+        "mapping_coverage": dataset.get("mapping_coverage"),
+    } for dataset in _FIELD_DATASETS_STORE.values()]
 
 
 def import_field_observation_dataset(dataset_data: Dict[str, Any]) -> FieldObservationDataset:
     """Validates and stores an imported field observation dataset."""
     validated = validate_field_observations(dataset_data)
+    existing = _FIELD_DATASETS_STORE.get(validated.get("dataset_id", ""))
+    if existing and (
+        existing.get("purpose") != validated.get("purpose")
+        or existing.get("dataset_content_hash") != validated.get("dataset_content_hash")
+    ):
+        validated["is_valid"] = False
+        validated.setdefault("validation_errors", []).append(
+            "dataset_id is immutable after import; observations cannot be relabeled or replaced after allocation."
+        )
+        return validated
     _FIELD_DATASETS_STORE[validated["dataset_id"]] = validated
     return validated
 
@@ -267,9 +380,10 @@ def evaluate_field_calibration(
     3. Prevents transition to VALIDATED using the same dataset used for calibration.
     4. State transitions:
        - UNCALIBRATED: 0 usable field observations.
-       - PARTIALLY_CALIBRATED: observations exist, but MAPE > 20% or coverage < 4 intersections.
+       - PARTIALLY_CALIBRATED: observations exist, but configured acceptance criteria are not yet met.
        - CALIBRATED: sample >= 4, MAPE <= 15%, Pearson r >= 0.85.
-       - VALIDATED: independent holdout dataset confirms accuracy (GEH < 5 for >= 85% of flows, MAPE <= 15%, r >= 0.85).
+       - VALIDATED: an independent holdout dataset meets UrbanMind's configured
+         GEH, MAPE, correlation, and coverage acceptance criteria.
     """
     global _ACTIVE_CALIBRATION_STATUS, _ACTIVE_CALIBRATION_DATASET_ID, _ACTIVE_VALIDATION_DATASET_ID
     prev_status = _ACTIVE_CALIBRATION_STATUS
@@ -300,32 +414,144 @@ def evaluate_field_calibration(
     purpose = ds.get("purpose", "CALIBRATION")
     is_holdout = purpose == "VALIDATION_HOLDOUT"
 
-    # Reference simulated counts (per intersection per hour)
-    default_sim_counts = {
-        "intersection_1": 420.0,
-        "intersection_2": 380.0,
-        "intersection_3": 350.0,
-        "intersection_4": 390.0,
-        "intersection_5": 310.0,
-        "intersection_6": 340.0,
-        "cluster_1": 420.0,
-        "cluster_2": 380.0,
-        "cluster_3": 350.0,
-        "cluster_4": 390.0,
-        "cluster_5": 310.0,
-        "cluster_6": 340.0,
-    }
-    sim_lookup = simulated_counts or default_sim_counts
+    calibration_ds = _FIELD_DATASETS_STORE.get(_ACTIVE_CALIBRATION_DATASET_ID or "")
+    if is_holdout and calibration_ds:
+        calibration_hashes = set(calibration_ds.get("observation_content_hashes", []))
+        holdout_hashes = set(ds.get("observation_content_hashes", []))
+        calibration_windows = {
+            (record.get("mapping_id"), record.get("measurement_window_id"), record.get("interval_minutes"),
+             record.get("vehicle_class"), record.get("vehicle_count"))
+            for record in calibration_ds.get("observations", [])
+        }
+        holdout_windows = {
+            (record.get("mapping_id"), record.get("measurement_window_id"), record.get("interval_minutes"),
+             record.get("vehicle_class"), record.get("vehicle_count"))
+            for record in ds.get("observations", [])
+        }
+        leakage_reason = None
+        if ds.get("dataset_content_hash") == calibration_ds.get("dataset_content_hash"):
+            leakage_reason = "dataset content hash equals the calibration dataset"
+        elif calibration_hashes & holdout_hashes:
+            leakage_reason = "observation content overlaps the calibration dataset"
+        elif calibration_windows & holdout_windows:
+            leakage_reason = "measurement-window/movement/count pairs overlap the calibration dataset"
+        elif ds.get("campaign_id") == calibration_ds.get("campaign_id"):
+            leakage_reason = "field-survey campaign matches the calibration campaign"
+        if leakage_reason:
+            return {
+                "dataset_id": dataset_id, "purpose": purpose, "status": prev_status,
+                "previous_status": prev_status, "is_holdout_validation": True,
+                "calibration_dataset_id": _ACTIVE_CALIBRATION_DATASET_ID, "validation_dataset_id": None,
+                "metrics": {"metric_name": "turning_movement_flow", "unit": "veh/h", "sample_count": 0, "is_applicable": False,
+                            "methodology_note": f"Holdout rejected: {leakage_reason}."},
+                "thresholds_met": {"mape_under_15": False, "correlation_over_085": False, "coverage_adequate": False, "geh_compliant": False, "independent_holdout": False},
+                "summary_en": f"Holdout rejected because {leakage_reason}.",
+                "summary_ru": "Проверочный набор отклонен из-за пересечения с калибровочными наблюдениями.",
+                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+    # Calibration requires simulation values mapped to the same movement as
+    # every field record.  Placeholder per-intersection counts would make an
+    # unexecuted model appear calibrated, so they are deliberately forbidden.
+    sim_lookup = simulated_counts or {}
+    if not sim_lookup:
+        return {
+            "dataset_id": dataset_id,
+            "purpose": purpose,
+            "status": prev_status,
+            "previous_status": prev_status,
+            "is_holdout_validation": is_holdout,
+            "calibration_dataset_id": _ACTIVE_CALIBRATION_DATASET_ID,
+            "validation_dataset_id": _ACTIVE_VALIDATION_DATASET_ID,
+            "metrics": {
+                "metric_name": "turning_movement_flow",
+                "unit": "veh/h",
+                "sample_count": 0,
+                "is_applicable": False,
+                "methodology_note": "Simulation counts are required and must be mapped by intersection|approach|movement.",
+            },
+            "thresholds_met": {"mape_under_15": False, "correlation_over_085": False, "coverage_adequate": False, "geh_compliant": False, "mapped_simulation_counts": False},
+            "summary_en": "Calibration was not evaluated: no movement-mapped SUMO counts were supplied. Model status is unchanged.",
+            "summary_ru": "Калибровка не выполнена: не переданы моделируемые SUMO-потоки, сопоставленные с направлением движения. Статус модели не изменен.",
+            "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     obs_series: List[float] = []
     sim_series: List[float] = []
 
     for obs in ds["observations"]:
-        ix = obs.get("intersection_id", "")
+        mapping_id = str(obs.get("mapping_id") or "")
+        sim_entry = sim_lookup.get(mapping_id)
+        mapping = get_mapping_registry().by_id(mapping_id)
+        if not isinstance(sim_entry, dict):
+            return {
+                "dataset_id": dataset_id,
+                "purpose": purpose,
+                "status": prev_status,
+                "previous_status": prev_status,
+                "is_holdout_validation": is_holdout,
+                "calibration_dataset_id": _ACTIVE_CALIBRATION_DATASET_ID,
+                "validation_dataset_id": _ACTIVE_VALIDATION_DATASET_ID,
+                "metrics": {"metric_name": "turning_movement_flow", "unit": "veh/h", "sample_count": 0, "is_applicable": False, "methodology_note": f"Missing provenance-bearing SUMO count for mapping '{mapping_id}'."},
+                "thresholds_met": {"mape_under_15": False, "correlation_over_085": False, "coverage_adequate": False, "geh_compliant": False, "mapped_simulation_counts": False},
+                "summary_en": f"Calibration was not evaluated: missing provenance-bearing SUMO count for mapping '{mapping_id}'. Model status is unchanged.",
+                "summary_ru": f"Калибровка не выполнена: отсутствует сопоставленный поток SUMO для mapping '{mapping_id}'. Статус модели не изменен.",
+                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        if (
+            mapping is None
+            or not mapping.calibration_eligible
+            or sim_entry.get("mapping_id") != mapping_id
+            or sim_entry.get("provenance") != "SIMULATED"
+            or sim_entry.get("interval_minutes") != obs.get("interval_minutes")
+            or sim_entry.get("network_version") != mapping.network_version
+            or sim_entry.get("network_configuration_hash") != mapping.configuration_hash
+            or sim_entry.get("mapping_version") != mapping.mapping_version
+            or sim_entry.get("simulation_id") != ds.get("simulation_campaign_id")
+            or sim_entry.get("measurement_window_id") != obs.get("measurement_window_id")
+            or obs.get("vehicle_class") != "passenger_car"
+        ):
+            return {
+                "dataset_id": dataset_id, "purpose": purpose, "status": prev_status,
+                "previous_status": prev_status, "is_holdout_validation": is_holdout,
+                "calibration_dataset_id": _ACTIVE_CALIBRATION_DATASET_ID,
+                "validation_dataset_id": _ACTIVE_VALIDATION_DATASET_ID,
+                "metrics": {"metric_name": "turning_movement_flow", "unit": "veh/h", "sample_count": 0, "is_applicable": False, "methodology_note": "SUMO count provenance, mapping/version, vehicle class, simulation campaign, or measurement window is incompatible with the field observation."},
+                "thresholds_met": {"mape_under_15": False, "correlation_over_085": False, "coverage_adequate": False, "geh_compliant": False, "mapped_simulation_counts": False},
+                "summary_en": "Calibration was not evaluated: SUMO movement count is not comparable to the observed movement, class, campaign, or measurement window.",
+                "summary_ru": "Калибровка не выполнена: поток SUMO несопоставим с наблюдаемым направлением или интервалом.",
+                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        vehicle_classes = sim_entry.get("vehicle_classes")
+        if not isinstance(vehicle_classes, dict) or "passenger_car" not in vehicle_classes:
+            return {
+                "dataset_id": dataset_id, "purpose": purpose, "status": prev_status, "previous_status": prev_status,
+                "is_holdout_validation": is_holdout, "calibration_dataset_id": _ACTIVE_CALIBRATION_DATASET_ID,
+                "validation_dataset_id": _ACTIVE_VALIDATION_DATASET_ID,
+                "metrics": {"metric_name": "turning_movement_flow", "unit": "veh/h", "sample_count": 0, "is_applicable": False,
+                            "methodology_note": "Passenger-class simulation count is unavailable; class-specific calibration is not comparable."},
+                "thresholds_met": {"mape_under_15": False, "correlation_over_085": False, "coverage_adequate": False, "geh_compliant": False, "mapped_simulation_counts": False},
+                "summary_en": "Calibration was not evaluated: the passenger-only SUMO fleet cannot validate this observation without a passenger-class movement count.",
+                "summary_ru": "Калибровка не выполнена: отсутствует сопоставленный поток SUMO для класса passenger_car.",
+                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            }
         intv = obs.get("interval_minutes", 15)
         scale = 60.0 / max(1, intv)
         obs_hourly = obs.get("vehicle_count", 0) * scale
-        sim_hourly = sim_lookup.get(ix, 350.0)
+        try:
+            sim_hourly = float(vehicle_classes["passenger_car"]) * scale
+        except (KeyError, TypeError, ValueError):
+            return {
+                "dataset_id": dataset_id, "purpose": purpose, "status": prev_status,
+                "previous_status": prev_status, "is_holdout_validation": is_holdout,
+                "calibration_dataset_id": _ACTIVE_CALIBRATION_DATASET_ID,
+                "validation_dataset_id": _ACTIVE_VALIDATION_DATASET_ID,
+                "metrics": {"metric_name": "turning_movement_flow", "unit": "veh/h", "sample_count": 0, "is_applicable": False, "methodology_note": "SUMO movement count must contain numeric vehicle_count."},
+                "thresholds_met": {"mape_under_15": False, "correlation_over_085": False, "coverage_adequate": False, "geh_compliant": False, "mapped_simulation_counts": False},
+                "summary_en": "Calibration was not evaluated: invalid SUMO movement count payload.",
+                "summary_ru": "Калибровка не выполнена: неверный формат потока SUMO.",
+                "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            }
 
         obs_series.append(obs_hourly)
         sim_series.append(sim_hourly)
@@ -389,12 +615,12 @@ def evaluate_field_calibration(
             summary_en = (
                 f"Model successfully VALIDATED against independent holdout dataset '{dataset_id}' "
                 f"({sample_count} observations across {unique_ix_count} intersections). "
-                f"GEH < 5.0 in {geh_pct}% of flows, MAPE: {mape}%, Pearson r: {r}."
+                f"UrbanMind configured GEH criterion met for {geh_pct}% of flows, MAPE: {mape}%, Pearson r: {r}."
             )
             summary_ru = (
                 f"Модель успешно ВАЛИДИРОВАНА по независимому набору данных '{dataset_id}' "
                 f"({sample_count} наблюдений на {unique_ix_count} перекрестках). "
-                f"GEH < 5.0 в {geh_pct}% потоков, MAPE: {mape}%, r: {r}."
+                f"Настроенный критерий GEH UrbanMind выполнен для {geh_pct}% потоков, MAPE: {mape}%, r: {r}."
             )
         else:
             summary_en = (
@@ -454,32 +680,27 @@ def get_field_validation_protocol(spatial_scope_id: str = "central_corridor") ->
     """
     return {
         "protocol_id": "UM-FVP-2026-TASHKENT-01",
-        "title_en": "Tashkent Central Corridor Field Validation & Turning Count Protocol",
-        "title_ru": "Протокол натурной валидации и подсчета поворотных потоков Центрального коридора Ташкента",
+        "title_en": "Field Validation Readiness Protocol (verification required)",
+        "title_ru": "Протокол готовности к натурной валидации (требуется верификация)",
         "recommended_duration_days": 14,
         "sampling_interval_min": 15,
-        "intersections": [
-            "intersection_1 (Main Square)",
-            "intersection_2 (School Junction)",
-            "intersection_3 (Clinic Roundabout)",
-            "intersection_4 (Market Edge)",
-        ],
-        "approaches": ["Northbound", "Southbound", "Eastbound", "Westbound"],
+        "intersections": [],
+        "approaches": [],
         "movements": ["through", "left", "right", "u_turn"],
         "time_windows": [
             "Morning Peak: 07:30 - 09:30",
             "Midday Off-Peak: 12:00 - 14:00",
             "Evening Peak: 17:30 - 19:30",
         ],
-        "vehicle_classes": ["passenger_car", "bus", "truck", "motorcycle"],
+        "vehicle_classes": ["passenger_car"],
         "context_fields": ["weather_condition", "ambient_temperature_c", "road_surface_state", "incident_flags"],
         "description_en": (
-            "Multi-day field count deployment protocol covering morning, midday, and evening peak intervals "
-            "using calibrated radar and video turning movement counters. Results form the independent holdout dataset."
+            "No field deployment is enabled. Populate this protocol only after verified field-to-SUMO mappings, "
+            "a passenger-class comparison contract, and pre-allocated independent campaigns exist."
         ),
         "description_ru": (
-            "Протокол многодневных натурных подсчетов в утренний, дневной и вечерний пик "
-            "с использованием радарных и видеодетекторов. Данные формируют независимый проверочный набор."
+            "Натурное развертывание не включено. Заполняйте протокол только после верификации соответствий "
+            "поле—SUMO, контракта класса passenger_car и заранее выделенных независимых кампаний."
         ),
     }
 
@@ -514,8 +735,8 @@ def get_calibration_status(spatial_scope_id: str = "central_corridor") -> Calibr
         exp_en = "Corridor traffic volumes are calibrated against validated field turning movement counts."
         exp_ru = "Транспортные объемы коридора откалиброваны по валидированным натурным подсчетам поворотных потоков."
     else:
-        exp_en = "Model is fully VALIDATED against an independent holdout field dataset with UK WebTAG GEH compliance."
-        exp_ru = "Модель полностью ВАЛИДИРОВАНА по независимому проверочному набору данных с соблюдением критерия GEH."
+        exp_en = "Model is VALIDATED against an independent holdout field dataset and UrbanMind's configured GEH acceptance criteria."
+        exp_ru = "Модель ВАЛИДИРОВАНА по независимому проверочному набору данных и настроенным критериям приемки GEH UrbanMind."
 
     return {
         "status": _ACTIVE_CALIBRATION_STATUS,
@@ -532,7 +753,7 @@ def get_calibration_status(spatial_scope_id: str = "central_corridor") -> Calibr
         ] + [f"Field Dataset: {ds['name']}" for ds in _FIELD_DATASETS_STORE.values()],
         "modeled_sources": [
             "SUMO 1.27.1 Microscopic Physics Engine (TraCI)",
-            "HBEFA 4.2 Emission Modeling Framework",
+            "SUMO/TraCI emission output collection (configured emission class to be documented)",
         ],
         "methodology_caveats_en": [
             "Simulation tests validate software execution, not real-world transport model accuracy.",
@@ -569,26 +790,26 @@ def get_model_vs_reality_breakdown(
             "name_en": "PM2.5 Ambient Concentration",
             "name_ru": "Концентрация PM2.5 (фон)",
             "category": "OBSERVED",
-            "source": "Uzhydromet / WAQI Station #2",
-            "source_ru": "Пост Узгидромета / WAQI №2",
-            "value": env.get("pm25", 28.4),
+            "source": env.get("source") or "No environmental observation loaded",
+            "source_ru": env.get("source") or "Наблюдение окружающей среды не загружено",
+            "value": env.get("pm25"),
             "unit": "µg/m³",
-            "calibration_state": "OBSERVED_FIELD_DATA",
-            "description_en": "Physical air quality sensor measurement in Tashkent central district.",
-            "description_ru": "Натурное измерение концентрации взвешенных частиц в воздухе.",
+            "calibration_state": "OBSERVED_FIELD_DATA" if env.get("pm25") is not None else "UNAVAILABLE",
+            "description_en": "External ambient observation when a provider returns a value; otherwise unavailable.",
+            "description_ru": "Внешнее фоновое наблюдение при наличии значения от провайдера; иначе недоступно.",
         },
         {
             "key": "ambient_temp_observed",
             "name_en": "Ambient Temperature",
             "name_ru": "Температура воздуха",
             "category": "OBSERVED",
-            "source": "Tashkent Weather Telemetry",
-            "source_ru": "Метеостанция Ташкента",
-            "value": env.get("temperature", 24.0),
+            "source": env.get("source") or "No environmental observation loaded",
+            "source_ru": env.get("source") or "Наблюдение окружающей среды не загружено",
+            "value": env.get("temperature"),
             "unit": "°C",
-            "calibration_state": "OBSERVED_FIELD_DATA",
-            "description_en": "Physical ambient temperature influencing engine cold-start and idle emissions.",
-            "description_ru": "Натурная температура воздуха, влияющая на прогрев и выбросы двигателей.",
+            "calibration_state": "OBSERVED_FIELD_DATA" if env.get("temperature") is not None else "UNAVAILABLE",
+            "description_en": "External weather observation when a provider returns a value; otherwise unavailable.",
+            "description_ru": "Внешнее метеонаблюдение при наличии значения от провайдера; иначе недоступно.",
         },
         {
             "key": "traffic_counts_field",
@@ -608,8 +829,8 @@ def get_model_vs_reality_breakdown(
     simulated_metrics: List[MetricClassification] = [
         {
             "key": "average_waiting_seconds",
-            "name_en": "Average Delay",
-            "name_ru": "Средняя задержка",
+            "name_en": "Sampled accumulated waiting snapshot mean",
+            "name_ru": "Среднее накопленное ожидание по выборке снимков",
             "category": "SIMULATED",
             "source": "SUMO 1.27.1 (TraCI)",
             "source_ru": "SUMO 1.27.1 (TraCI)",
@@ -646,26 +867,26 @@ def get_model_vs_reality_breakdown(
             "description_ru": "Частота полных остановок на маршруте в симуляторе.",
         },
         {
-            "key": "co2_kg",
-            "name_en": "Estimated CO₂ Emissions",
+            "key": "sumo_co2_kg",
+            "name_en": "Modeled CO₂ Emissions",
             "name_ru": "Моделируемые выбросы CO₂",
             "category": "SIMULATED",
-            "source": "HBEFA 4.2 Engine Model",
-            "source_ru": "Модель выбросов HBEFA 4.2",
-            "value": scen.get("co2_kg", 0.0),
+            "source": "SUMO/TraCI emission output",
+            "source_ru": "Выходные данные выбросов SUMO/TraCI",
+            "value": scen.get("sumo_co2_kg", 0.0),
             "unit": "kg",
             "calibration_state": "DOMAIN_MODEL_ESTIMATE",
             "description_en": "Calculated from instantaneous vehicle acceleration, velocity, and fleet composition.",
             "description_ru": "Расчет на основе ускорений, скорости и структуры автопарка.",
         },
         {
-            "key": "nox_g",
+            "key": "sumo_nox_g",
             "name_en": "Estimated NOₓ Emissions",
             "name_ru": "Моделируемые выбросы NOₓ",
             "category": "SIMULATED",
-            "source": "HBEFA 4.2 Engine Model",
-            "source_ru": "Модель выбросов HBEFA 4.2",
-            "value": scen.get("nox_g", 0.0),
+            "source": "SUMO/TraCI emission output",
+            "source_ru": "Выходные данные выбросов SUMO/TraCI",
+            "value": scen.get("sumo_nox_g", 0.0),
             "unit": "g",
             "calibration_state": "DOMAIN_MODEL_ESTIMATE",
             "description_en": "Nitrogen oxides output modeled from vehicle driving cycles.",
@@ -681,7 +902,7 @@ def get_model_vs_reality_breakdown(
             "category": "DERIVED",
             "source": "UrbanMind Policy Engine",
             "source_ru": "Движок политик UrbanMind",
-            "value": "+14.8%",
+            "value": scen.get("policy_score"),
             "unit": "%",
             "calibration_state": "WEIGHTED_HEURISTIC",
             "description_en": "Normalized composite weighted index combining mobility, eco, and access gains.",
@@ -694,7 +915,7 @@ def get_model_vs_reality_breakdown(
             "category": "DERIVED",
             "source": "UrbanMind Spatial Model",
             "source_ru": "Пространственная модель UrbanMind",
-            "value": scen.get("accessibility_score", 78.0),
+            "value": scen.get("accessibility_score"),
             "unit": "/100",
             "calibration_state": "WEIGHTED_HEURISTIC",
             "description_en": "Composite index penalizing pedestrian wait times and reward safe crossings.",
@@ -729,10 +950,10 @@ def get_model_vs_reality_breakdown(
         ),
         "air_calibration_summary_en": (
             "Physical air monitoring stations (Uzhydromet/WAQI) provide real-world ambient baseline context, "
-            "while vehicle emissions (CO2, NOx) are modeled via HBEFA 4.2."
+            "while vehicle emissions (CO2, NOx) are modeled by the configured SUMO emission model."
         ),
         "air_calibration_summary_ru": (
             "Посты мониторинга воздуха (Узгидромет/WAQI) передают натурные фоновые данные, "
-            "в то время как выбросы ТС (CO2, NOx) рассчитываются по модели HBEFA 4.2."
+            "в то время как выбросы ТС (CO2, NOx) рассчитываются настроенной моделью выбросов SUMO."
         ),
     }

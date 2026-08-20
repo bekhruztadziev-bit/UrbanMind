@@ -1,10 +1,15 @@
 import pytest
 from app.services.environment.models import EnvironmentalObservation
-from app.services.environment.provider import get_current_observation
+from app.services.environment.provider import get_current_observation, invalidate_cache
 
-def test_environment_provider_offline():
-    # Since we don't mock the provider here, and we don't have API keys set in the test environment,
-    # the provider should gracefully return an UNAVAILABLE observation.
+def test_environment_provider_offline(monkeypatch):
+    # Unit tests must not silently turn into live external API probes merely
+    # because a developer has configured credentials locally.
+    import app.services.environment.waqi_provider as waqi_provider
+    import app.services.environment.iqair_provider as iqair_provider
+    invalidate_cache()
+    monkeypatch.setattr(waqi_provider, "fetch_observation", lambda: None)
+    monkeypatch.setattr(iqair_provider, "fetch_observation", lambda: None)
     obs = get_current_observation()
     
     assert obs is not None

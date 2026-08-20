@@ -113,7 +113,7 @@ def test_experiment_control_cache(mock_run_sim, mock_signal):
         for c in all_interventions
         if c.get("evaluation_mode") == "SIMULATED"
     ]
-    assert len(simulated_ids) == 5, "Registry must have exactly 5 SIMULATED interventions"
+    assert len(simulated_ids) == 4, "Registry must have exactly 4 implemented SIMULATED interventions"
 
     traffic_levels = [0.8, 1.2]
 
@@ -124,9 +124,9 @@ def test_experiment_control_cache(mock_run_sim, mock_signal):
         "duration": 50,
     })
 
-    # 2 control calls + (2 levels * 5 simulated interventions) = 12 calls
-    assert mock_run_sim.call_count == 12, f"Expected 12 total run_simulation calls, got {mock_run_sim.call_count}"
-    assert result["summary"]["completed"] == 2 * 5
+    # 2 control calls + (2 levels * 4 simulated interventions) = 10 calls
+    assert mock_run_sim.call_count == 10, f"Expected 10 total run_simulation calls, got {mock_run_sim.call_count}"
+    assert result["summary"]["completed"] == 2 * 4
     assert result["summary"]["failed"] == 0
 
 
@@ -236,15 +236,9 @@ def test_experiment_determinism(mock_run_sim, mock_signal):
 # test_experiment_heuristic_flag
 # ---------------------------------------------------------------------------
 
-@patch("app.services.simulation.experiment_runner._scenario_signal_selection",
-       return_value=(MOCK_SIGNAL_ID, MOCK_PHASE_INDEX))
-@patch("app.services.simulation.experiment_runner.run_simulation")
-def test_experiment_heuristic_flag(mock_run_sim, mock_signal):
-    """HEURISTIC conditions must have evaluation_mode='HEURISTIC' and must NOT call run_simulation."""
-    mock_run_sim.side_effect = _make_run_sim()
-
+def test_registry_has_no_unsupported_heuristic_candidates():
+    """Authoritative candidate ranking must not use formula-only interventions."""
     from app.services.simulation.interventions import get_candidate_interventions
-    from app.services.simulation.experiment_runner import run_experiment
 
     all_interventions = get_candidate_interventions(MOCK_SIGNAL_ID, MOCK_PHASE_INDEX)
     heuristic_ids = [
@@ -252,22 +246,7 @@ def test_experiment_heuristic_flag(mock_run_sim, mock_signal):
         for c in all_interventions
         if c.get("evaluation_mode") == "HEURISTIC"
     ]
-    assert len(heuristic_ids) > 0, "Registry must have at least one HEURISTIC intervention"
-
-    result = run_experiment({
-        "name": "Heuristic Flag Test",
-        "traffic_levels": [1.0],
-        "intervention_ids": heuristic_ids,
-        "duration": 50,
-    })
-
-    # Only the control call should use run_simulation (1 per traffic level)
-    assert mock_run_sim.call_count == 1
-
-    for cond in result["conditions"]:
-        assert cond["evaluation_mode"] == "HEURISTIC"
-        assert cond["status"] == "COMPLETED"
-        assert cond["scenario_metrics"] is not None
+    assert heuristic_ids == []
 
 
 # ---------------------------------------------------------------------------

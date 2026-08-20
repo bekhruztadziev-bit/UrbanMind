@@ -48,32 +48,13 @@ const fallbackDistrict = {
     },
   },
   intersections: [
-    { id: 'intersection_1', name: 'Main Square', coords: [41.3168, 69.2666], traffic_light_ids: ['cluster_1'] },
-    { id: 'intersection_2', name: 'School Junction', coords: [41.3182, 69.2684], traffic_light_ids: ['cluster_2'] },
-    { id: 'intersection_3', name: 'Clinic Roundabout', coords: [41.3157, 69.2692], traffic_light_ids: ['cluster_3'] },
-    { id: 'intersection_4', name: 'Market Edge', coords: [41.3149, 69.2638], traffic_light_ids: ['cluster_4'] },
-    { id: 'intersection_5', name: 'North Residential Corridor', coords: [41.3199, 69.2718], traffic_light_ids: ['cluster_5'] },
-    { id: 'intersection_6', name: 'Bus Terminal Link', coords: [41.3136, 69.2707], traffic_light_ids: ['cluster_6'] },
+    { id: 'demo_signal_group_a', name: 'Signal Group A (demonstration)', coords: [41.3168, 69.2666], traffic_light_ids: [], spatial_provenance: 'PRODUCT_DEMO_LABEL' },
+    { id: 'demo_signal_group_b', name: 'Signal Group B (demonstration)', coords: [41.3182, 69.2684], traffic_light_ids: [], spatial_provenance: 'PRODUCT_DEMO_LABEL' },
   ],
   roads: [],
-  facilities: [
-    { id: 'school_1', type: 'school', name: 'District School', coords: [41.3186, 69.2698] },
-    { id: 'clinic_1', type: 'clinic', name: 'Community Clinic', coords: [41.3154, 69.2676] },
-    { id: 'kindergarten_1', type: 'kindergarten', name: 'Kindergarten #4', coords: [41.3171, 69.2648] },
-    { id: 'bus_stop_1', type: 'bus_stop', name: 'Bus Stop East', coords: [41.3191, 69.2661] },
-    { id: 'park_1', type: 'park', name: 'Park', coords: [41.3138, 69.2702] },
-    { id: 'facility_1', type: 'administrative', name: 'Mahalla Office', coords: [41.3147, 69.2641] },
-    { id: 'facility_2', type: 'public', name: 'Community Center', coords: [41.3198, 69.2709] },
-    { id: 'market_1', type: 'market', name: 'Market Square', coords: [41.3128, 69.2645] },
-    { id: 'mosque_1', type: 'religious', name: 'Mosque Lane', coords: [41.3213, 69.2727] },
-  ],
-  monitoring_stations: [
-    { id: 'uzhydromet_chilanzar', name: 'Chilanzar', coords: [41.2856, 69.2128], source: 'Uzhydromet' },
-    { id: 'uzhydromet_center', name: 'Amir Temur', coords: [41.3111, 69.2797], source: 'Uzhydromet' },
-    { id: 'uzhydromet_sergeli', name: 'Sergeli', coords: [41.2275, 69.2199], source: 'Uzhydromet' },
-    { id: 'uzhydromet_olmazor', name: 'Olmazor', coords: [41.3377, 69.2150], source: 'Uzhydromet' },
-    { id: 'uzhydromet_yakkasaray', name: 'Yakkasaray', coords: [41.2887, 69.2864], source: 'Uzhydromet' },
-  ],
+  // Offline fallback is a visual shell, not a spatial evidence source.
+  facilities: [],
+  monitoring_stations: [],
 }
 
 function App() {
@@ -82,7 +63,7 @@ function App() {
   const [health, setHealth] = useState(null)
   const [mahalla, setMahalla] = useState(fallbackDistrict)
   const scenario = 'midday'
-  const [selectedId, setSelectedId] = useState('intersection_1')
+  const [selectedId, setSelectedId] = useState('demo_signal_group_a')
   const [currentView, setCurrentView] = useState('insights')
   const [globalError, setGlobalError] = useState('')
   const [presentationMode, setPresentationMode] = useState(false)
@@ -257,34 +238,6 @@ function App() {
             onOpenReport={() => {
               if (optResult) {
                 handleOpenDashboardDecisionReport(optResult)
-              } else {
-                handleOpenDashboardDecisionReport({
-                  scenario: 'evening_peak',
-                  policy: activePolicy,
-                  baseline: {
-                    average_waiting_seconds: 24.8,
-                    average_travel_time_seconds: 118.5,
-                    average_speed_kmh: 22.1,
-                    stops_per_vehicle: 1.45,
-                    throughput_vehicles_per_hour: 1820.0,
-                    co2_kg: 18.2,
-                  },
-                  best_candidate: {
-                    id: 'green_wave_coordination_0s_signal_timing',
-                    label: 'Green Wave Corridor Progression (40 km/h offset)',
-                    label_ru: 'Зеленая волна по коридору (смещение фаз под 40 км/ч)',
-                    metrics: {
-                      average_waiting_seconds: 17.8,
-                      average_travel_time_seconds: 92.4,
-                      average_speed_kmh: 27.5,
-                      stops_per_vehicle: 0.85,
-                      throughput_vehicles_per_hour: 2150.0,
-                      co2_kg: 15.0,
-                    },
-                    policy_breakdown: { overall_score: 16.5, mobility_score: 24.0, environment_score: 15.0, accessibility_score: 3.0, is_valid: true },
-                    tradeoff_summary: { improved: [{ name: 'Average Delay', change_pct: -28.2 }], worsened: [{ name: 'Side Street Delay', change_pct: 3.5 }] },
-                  }
-                })
               }
             }}
           />
@@ -343,7 +296,7 @@ function App() {
           setSelectedId={setSelectedId}
           handleAnalyze={handleAnalyze}
           handleOptimize={() => handleOptimize((data) => {
-            setSelectedId('intersection_1')
+            setSelectedId('demo_signal_group_a')
           })}
           activePolicy={activePolicy}
           onSelectPolicy={setActivePolicy}
@@ -379,4 +332,3 @@ function App() {
 }
 
 export default App
-

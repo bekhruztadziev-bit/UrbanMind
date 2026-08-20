@@ -264,7 +264,7 @@ export function ExperimentsPage({
               onClick={() => {
                 setExperimentName(isRu ? 'Бенчмарк для жюри' : 'Competition Benchmark')
                 experiment.setSelectedTrafficLevels([0.8, 1.0, 1.2, 1.4])
-                experiment.setSelectedInterventionIds(['green_wave_coordination_0s_signal_timing', 'extend_green_5s_signal_timing', 'school_zone_slowdown_0s_safety'])
+                experiment.setSelectedInterventionIds(['extend_green_5s_signal_timing', 'extend_green_10s_signal_timing', 'school_zone_slowdown_0s_safety'])
                 experiment.setSimulationProfile('Standard Evaluation')
               }}
               style={{ fontSize: '0.82rem', background: 'rgba(30, 41, 59, 0.8)', border: '1px solid rgba(255,255,255,0.1)' }}

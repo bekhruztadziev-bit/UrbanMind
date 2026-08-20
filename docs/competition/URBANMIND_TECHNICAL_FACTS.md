@@ -12,12 +12,12 @@ A summary of the verified technical architecture and behavior of UrbanMind v3, f
 - **Completed Trip Time Loss**: Measures the average time lost by vehicles that successfully reached their destination. This is the primary metric for long-term network efficiency.
 - **Active Vehicle Time Loss**: Measures the current time loss of vehicles still in the network. This is the primary metric for real-time congestion.
 - **Environmental Data**: Integrates live PM2.5, PM10, AQI, Temperature, and Humidity readings from Uzhydromet (via WAQI/AQICN) with fallback to IQAir.
-- **Emissions**: Uses SUMO's continuous HBEFA-based tailpipe emission models (mg/s per vehicle) to accurately calculate CO₂ and NOx changes caused by traffic interventions.
+- **Emissions**: Collects the active scenario's SUMO/TraCI tailpipe-emission outputs (mg/s per vehicle). These are modeled outputs; the repository does not verify or assert a particular HBEFA version.
 
 ## 3. Simulation Profiles (Duration)
-- **Demo Burst (300 steps)**: Quick representation. Demonstrates transient "warm-up" states where the network fills. Control metrics are artificially low.
-- **Standard Evaluation (900 steps)**: High scientific rigor. Allows the simulation to reach a steady-state where queues form naturally. This profile was used to validate the Traffic Calming intervention.
-- **Extended Evaluation (1800 steps)**: Used for deep diagnostic checks. Yields similar steady-state results to the 900-step profile.
+- **Demo Burst (300 steps)**: Quick simulation run; its results remain simulated and may be transient.
+- **Standard Evaluation (900 steps)**: Longer simulation run; it is not field validation.
+- **Extended Evaluation (1800 steps)**: Longer diagnostic simulation; no real-world validation claim follows from it.
 
 ## 4. Why Traffic Calming Works Best
 At high demand multipliers (1.2x to 1.4x), the Yakkabog district's tight grid experiences "queue spillback"—where vehicles waiting at one intersection back up into the previous intersection, blocking cross-traffic. 

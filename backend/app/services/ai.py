@@ -61,9 +61,9 @@ def _rule_based_summary(
     ]
 
     action_title = act.get("title_ru" if language == "ru" else "title_en") or (
-        "Установка временных детекторов на узлах cluster_1 и cluster_2"
+        "Планирование верифицированной временной проверки поворотных потоков"
         if language == "ru"
-        else "Deploy temporary detector count validation at cluster_1 and cluster_2"
+        else "Plan verified temporary turning-count validation"
     )
 
     why_won_text = best_obj.get("why_won_ru" if language == "ru" else "why_won_en") or best_obj.get("why_won") or best_obj.get("selected_reason")
@@ -346,14 +346,14 @@ Policy Context:
 {policy_comp_summary}
 
 Simulation Data Context:
-- Evaluated Corridor: Tashkent Central Corridor (Signals: cluster_1 through cluster_6)
+- Evaluated scope: configured demonstration network; field locations are not verified mappings
 - Target Signal/Node: {signal_id or 'Corridor Progression Axis'}
 - Total Interventions Evaluated: {len(cands)}
 - Selected Strategy: {best_name}
 - Baseline Performance: Delay={base_wait:.1f}s, Travel Time={base_tt:.1f}s, Speed={base_speed:.1f}km/h, Stops/Veh={base_stops:.2f}, Throughput={base_tp:.0f}veh/h, CO2={base_co2:.1f}kg
 - Optimized Performance: Delay={best_wait:.1f}s, Travel Time={best_tt:.1f}s, Speed={best_speed:.1f}km/h, Stops/Veh={best_stops:.2f}, Throughput={best_tp:.0f}veh/h, CO2={best_co2:.1f}kg
 - Percentage Changes: Delay={delay_imp}%, Travel Time={tt_imp}%, Stops={stops_imp}%, Throughput={tp_imp}%, CO2={co2_imp}%
-- Primary Outcomes: Average Delay (95% Student-t CI), Travel Time, Stops/Veh, Throughput
+- Primary Outcomes: sampled accumulated waiting snapshot mean (when multi-seed evidence exists), Travel Time, Stops/Veh, Throughput
 - Secondary Outcomes: CO2 Emissions, NOx, Queue Length, Pedestrian Delay
 - Recommended Next Field Step: {action_text}
 """

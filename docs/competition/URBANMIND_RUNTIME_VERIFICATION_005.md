@@ -100,7 +100,7 @@
 * **Expected Behavior**: Backend invokes TraCI across baseline and candidate interventions (`extend_green_5s`, `extend_green_10s`, `reduce_green_5s`, `school_zone_slowdown`), computes deterministic multi-objective rankings, and returns ranked candidates.
 * **Actual Behavior**:
   * `/api/optimize` executed 5 SUMO simulation instances (baseline + 4 SIMULATED candidates + 3 HEURISTIC candidates).
-  * TraCI connected, stepped through 300 simulation steps, collected vehicle speeds, accumulated delays, arrived vehicles, and HBEFA emission outputs.
+  * TraCI connected, stepped through 300 simulation steps, collected vehicle speeds, accumulated delays, arrived vehicles, and configured SUMO/TraCI emission outputs. This historical run does not verify an HBEFA version.
   * Optimizer computed composite scores balancing delay, accessibility, safety, and emissions, selecting `extend_green_5s_signal_timing` as best candidate.
   * UI renders completion banner: `"7 interventions evaluated"`.
 * **Relevant Files/Endpoints**:
@@ -264,7 +264,7 @@
     * `test_experiment.py`: 6 passed (Cartesian scenario evaluations, multi-level traffic runs)
     * `test_insights.py`: 1 passed (product positioning and neighborhood summary)
     * `test_mahalla_context.py`: 2 passed (district geometry, facilities, monitoring stations)
-    * `test_simulation.py`: 9 passed (TraCI session lifecycle, HBEFA emissions, metric calculations)
+    * `test_simulation.py`: 9 passed (TraCI session lifecycle, configured SUMO/TraCI emissions, metric calculations)
 * **Relevant Files/Endpoints**:
   * [backend/test_api.py](file:///c:/Users/user/UrbanMind/backend/test_api.py)
   * [backend/test_simulation.py](file:///c:/Users/user/UrbanMind/backend/test_simulation.py)

@@ -15,7 +15,7 @@ def canonical_cs():
 
 def test_canonical_case_study_generation(canonical_cs):
     assert canonical_cs["case_id"] == DEFAULT_CANONICAL_CASE_ID
-    assert "Central Tashkent Corridor" in canonical_cs["title"]
+    assert "Configured Demonstration Corridor" in canonical_cs["title"]
     assert len(canonical_cs["problem_statement"]) > 20
     assert canonical_cs["spatial_scope"]["id"] == "central_corridor"
     assert canonical_cs["selected_candidate"]["id"] is not None
@@ -36,8 +36,6 @@ def test_case_study_reproducibility_and_provenance(canonical_cs):
 
     prov = canonical_cs.get("provenance_views", {})
     assert "delay" in prov
-    assert "co2" in prov
-    assert "stops" in prov
     assert "Student-t" in prov["delay"]["statistical_method"]
 
 
@@ -46,7 +44,9 @@ def test_case_study_primary_and_secondary_outcomes(canonical_cs):
     assert len(prim) >= 4
     delay_outcome = next((p for p in prim if p["key"] == "average_waiting_seconds"), None)
     assert delay_outcome is not None
-    assert delay_outcome["relative_delta_pct"] == pytest.approx(-24.2, 0.1)
+    assert delay_outcome["baseline"] >= 0
+    assert delay_outcome["optimized"] >= 0
+    assert delay_outcome["provenance"] == "SIMULATED"
     assert delay_outcome["t_critical"] == pytest.approx(4.303, 0.01)
 
     sec = canonical_cs.get("secondary_outcomes", [])
@@ -55,9 +55,8 @@ def test_case_study_primary_and_secondary_outcomes(canonical_cs):
 
 def test_case_study_epistemic_statements(canonical_cs):
     ep = canonical_cs.get("epistemic_statements", [])
-    assert len(ep) >= 4
+    assert len(ep) >= 3
     categories = {e["category"] for e in ep}
-    assert "OBSERVED" in categories
     assert "SIMULATED" in categories
     assert "DERIVED" in categories
     assert "ASSUMPTION" in categories

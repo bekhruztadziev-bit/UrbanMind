@@ -182,15 +182,6 @@ export async function fetchCanonicalExperiment() {
   return handleResponse(response)
 }
 
-export async function runCanonicalExperiment(payload = {}) {
-  const response = await fetch(`${API_BASE}/experiments/canonical/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  return handleResponse(response)
-}
-
 export async function fetchCanonicalCaseStudy(language = 'en') {
   const response = await fetch(`${API_BASE}/case-studies/canonical?language=${encodeURIComponent(language)}`)
   return handleResponse(response)
@@ -239,6 +230,21 @@ export async function importFieldObservations(payload = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+  return handleResponse(response)
+}
+
+export async function fetchMovementMappings() {
+  const response = await fetch(`${API_BASE}/mappings`)
+  return handleResponse(response)
+}
+
+export async function fetchCalibrationTemplate() {
+  const response = await fetch(`${API_BASE}/calibration/template`)
+  return handleResponse(response)
+}
+
+export async function fetchCalibrationDatasets() {
+  const response = await fetch(`${API_BASE}/calibration/datasets`)
   return handleResponse(response)
 }
 

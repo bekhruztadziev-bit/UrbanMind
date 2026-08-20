@@ -31,7 +31,7 @@ Data quality is strictly categorized based on the timestamp of the observation:
 * **Observed vs Simulated**: Ambient air quality metrics (PM2.5, PM10, Temperature, AQI) are clearly labeled as "Observed" to prevent conflation with the localized simulation results.
 
 ## Emission Simulation Model
-UrbanMind utilizes SUMO's native Handbook Emission Factors for Road Transport (HBEFA) version 3/4 continuous models for estimating vehicular emissions based on acceleration, speed, and vehicle class.
+UrbanMind collects the emission values configured in the active SUMO scenario through TraCI. The repository does not currently pin or verify an HBEFA class/version, so it must not claim a particular HBEFA model.
 
 ### TraCI Collection
 Emissions are accumulated per-vehicle per-step during the measurement window via TraCI:
@@ -48,9 +48,9 @@ At the end of the simulation, the total accumulated emissions (in milligrams) ar
 These metrics are explicitly badged as **SIMULATED (SUMO)** in the frontend UI.
 
 ### Heuristic Estimates (Legacy)
-For backward compatibility or scenarios where SUMO emissions fail to report, UrbanMind retains the following heuristic estimation fallback, which is clearly badged as **ESTIMATED (Heuristic)**:
+The legacy heuristic fields are planning estimates, not substitutes for TraCI emission output:
 * `co2_kg = (max_vehicle_count * 0.62) + (average_waiting_seconds * 0.95)`
 * `nox_g = (max_vehicle_count * 0.08) + (average_waiting_seconds * 0.12)`
 
 ## Reproducibility
-* Local interventions directly affect the microscopic flow profile, which accurately triggers changes in SUMO's continuous emission model, allowing reproducible A/B comparisons of signal timing impacts on local tailpipe emissions.
+* Local interventions can change the microscopic flow profile and therefore the configured SUMO emission output. These are reproducible simulation comparisons, not measured tailpipe emissions.

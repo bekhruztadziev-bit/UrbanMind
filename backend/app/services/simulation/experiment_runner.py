@@ -13,13 +13,12 @@ Key design decisions:
 - HEURISTIC interventions are labeled as such and never implied to be SUMO-run.
 """
 
-import math
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.services.simulation.interventions import get_candidate_interventions, INTERVENTION_LABELS_RU, INTERVENTION_CATEGORIES_RU
-from app.services.simulation.metrics import METRIC_PROVENANCE, calculate_metrics, estimate_candidate_metrics
+from app.services.simulation.metrics import METRIC_PROVENANCE, calculate_metrics
 from app.services.simulation.models import (
     ExperimentCondition,
     ExperimentMetadata,
@@ -29,6 +28,7 @@ from app.services.simulation.models import (
     SimulationMetrics,
 )
 from app.services.simulation.session import _scenario_signal_selection, run_simulation
+from app.services.simulation.statistics import compute_sample_statistics
 
 # Metrics compared in every condition delta
 _DELTA_METRICS = [
@@ -58,7 +58,7 @@ EFFECTIVE_CRITERION = (
 )
 
 
-def compute_statistical_summary(metrics_list: List[SimulationMetrics]) -> Dict[str, Dict[str, float]]:
+def compute_statistical_summary(metrics_list: List[SimulationMetrics]) -> Dict[str, Dict[str, Any]]:
     """
     Compute mean, std_dev, min, max, and 95% confidence interval across multiple seed runs.
     """
@@ -71,32 +71,14 @@ def compute_statistical_summary(metrics_list: List[SimulationMetrics]) -> Dict[s
         "co2_kg", "nox_g", "accessibility_score", "max_vehicle_count"
     ]
 
-    stats: Dict[str, Dict[str, float]] = {}
-    n = len(metrics_list)
+    stats: Dict[str, Dict[str, Any]] = {}
 
     for key in numeric_keys:
         values = [float(m.get(key, 0.0) or 0.0) for m in metrics_list if m.get(key) is not None]
         if not values:
             continue
 
-        mean_val = sum(values) / len(values)
-        if len(values) > 1:
-            variance = sum((x - mean_val) ** 2 for x in values) / (len(values) - 1)
-            std_dev = math.sqrt(variance)
-        else:
-            std_dev = 0.0
-
-        ci_95_half = 1.96 * (std_dev / math.sqrt(n)) if n > 1 else 0.0
-
-        stats[key] = {
-            "mean": round(mean_val, 2),
-            "std_dev": round(std_dev, 2),
-            "min": round(min(values), 2),
-            "max": round(max(values), 2),
-            "ci_95_low": round(mean_val - ci_95_half, 2),
-            "ci_95_high": round(mean_val + ci_95_half, 2),
-            "sample_count": n,
-        }
+        stats[key] = compute_sample_statistics(values, allow_negative_ci=True)
 
     return stats
 
@@ -145,20 +127,16 @@ def _run_scenario_condition(
     measurement_steps: int = 0,
     scenario: str = "midday",
 ) -> SimulationMetrics:
-    """Run (or estimate) a scenario condition. SIMULATED = full TraCI run; HEURISTIC = estimate."""
-    eval_mode = intervention_def.get("evaluation_mode", "HEURISTIC")
-    if eval_mode == "SIMULATED":
-        raw = run_simulation({
-            "steps": duration,
-            "warmup_steps": warmup_steps,
-            "measurement_steps": measurement_steps or duration,
-            "scenario": scenario,
-            "intervention": intervention_def,
-            "traffic_multiplier": traffic_multiplier,
-        })
-        return calculate_metrics(raw)
-    else:
-        return estimate_candidate_metrics(control_metrics, intervention_def)
+    """Run one concrete SUMO condition for a registered intervention."""
+    raw = run_simulation({
+        "steps": duration,
+        "warmup_steps": warmup_steps,
+        "measurement_steps": measurement_steps or duration,
+        "scenario": scenario,
+        "intervention": intervention_def,
+        "traffic_multiplier": traffic_multiplier,
+    })
+    return calculate_metrics(raw)
 
 
 def run_experiment(request: ExperimentRequest) -> ExperimentResult:

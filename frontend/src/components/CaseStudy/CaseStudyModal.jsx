@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   exportCaseStudyToJson,
   exportCaseStudyToCsv,
@@ -6,38 +6,57 @@ import {
 } from '../../utils/export'
 import {
   fetchCanonicalCaseStudy,
-  runCanonicalExperiment,
-  importFieldObservations,
-  evaluateCalibration,
   fetchCalibrationProtocol,
+  fetchMovementMappings,
+  fetchCalibrationTemplate,
+  fetchCalibrationDatasets,
+  importFieldObservations,
 } from '../../api/client'
-import { safeNumber, formatSafeNumber } from '../../utils/normalize'
+import { formatSafeNumber } from '../../utils/normalize'
 
 export function CaseStudyModal({
   isOpen,
   onClose,
   language = 'en',
-  t = {},
 }) {
   const isRu = language === 'ru'
   const [activeTab, setActiveTab] = useState('brief')
   const [caseStudy, setCaseStudy] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [runningExp, setRunningExp] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [auditMode, setAuditMode] = useState(false)
   const [selectedProvenance, setSelectedProvenance] = useState(null)
   const [calibMessage, setCalibMessage] = useState('')
   const [importPurpose, setImportPurpose] = useState('CALIBRATION')
   const [fieldProtocol, setFieldProtocol] = useState(null)
+  const [mappingInfo, setMappingInfo] = useState(null)
+  const [calibrationTemplate, setCalibrationTemplate] = useState(null)
+  const [importDiagnostics, setImportDiagnostics] = useState(null)
+  const [calibrationDatasets, setCalibrationDatasets] = useState([])
+  const fileInputRef = useRef(null)
+
+  const loadCaseStudy = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await fetchCanonicalCaseStudy(language)
+      setCaseStudy(data)
+    } catch (err) {
+      console.error('Failed to load canonical case study:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [language])
 
   // Load canonical case study on open
   useEffect(() => {
     if (isOpen) {
-      loadCaseStudy()
+      Promise.resolve().then(loadCaseStudy)
       fetchCalibrationProtocol().then(setFieldProtocol).catch(() => null)
+      fetchMovementMappings().then(setMappingInfo).catch(() => null)
+      fetchCalibrationTemplate().then(setCalibrationTemplate).catch(() => null)
+      fetchCalibrationDatasets().then((data) => setCalibrationDatasets(data.datasets || [])).catch(() => null)
     }
-  }, [isOpen, language])
+  }, [isOpen, language, loadCaseStudy])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -49,58 +68,42 @@ export function CaseStudyModal({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
-  const loadCaseStudy = async () => {
-    setLoading(true)
-    try {
-      const data = await fetchCanonicalCaseStudy(language)
-      setCaseStudy(data)
-    } catch (err) {
-      console.error('Failed to load canonical case study:', err)
-    } finally {
-      setLoading(false)
-    }
+  const downloadObservationTemplate = () => {
+    const header = calibrationTemplate?.csv_header || 'dataset_id,purpose,campaign_id,simulation_campaign_id,timestamp,measurement_window_id,intersection_id,approach_id,movement,interval_minutes,vehicle_count,vehicle_class,source,quality,notes'
+    const blob = new Blob([`${header}\n`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'urbanmind_field_observation_template.csv'
+    anchor.click()
+    URL.revokeObjectURL(url)
   }
 
-  const handleRunCanonical = async () => {
-    setRunningExp(true)
-    try {
-      await runCanonicalExperiment({ language })
-      await loadCaseStudy()
-    } catch (err) {
-      console.error('Failed to run canonical experiment:', err)
-    } finally {
-      setRunningExp(false)
-    }
+  const beginObservationUpload = (purpose) => {
+    setImportPurpose(purpose)
+    fileInputRef.current?.click()
   }
 
-  const handleImportSampleData = async (purpose = 'CALIBRATION') => {
+  const handleObservationFile = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
     setLoading(true)
-    setCalibMessage('')
     try {
-      const isHoldout = purpose === 'VALIDATION_HOLDOUT'
-      const sampleDataset = {
-        dataset_id: isHoldout ? `DS-HOLDOUT-${Date.now()}` : `DS-CALIB-${Date.now()}`,
-        name: isHoldout ? 'Central Tashkent Holdout Validation Counts' : 'Central Tashkent Peak Turning Counts',
-        description: isHoldout ? 'Independent holdout detector dataset for model validation' : 'Radar turning movement calibration batch',
-        purpose: purpose,
-        observations: [
-          { intersection_id: 'intersection_1', approach_id: 'northbound', movement: 'through', interval_minutes: 60, vehicle_count: isHoldout ? 418 : 415, timestamp: new Date().toISOString() },
-          { intersection_id: 'intersection_2', approach_id: 'southbound', movement: 'through', interval_minutes: 60, vehicle_count: isHoldout ? 375 : 378, timestamp: new Date().toISOString() },
-          { intersection_id: 'intersection_3', approach_id: 'eastbound', movement: 'through', interval_minutes: 60, vehicle_count: isHoldout ? 346 : 348, timestamp: new Date().toISOString() },
-          { intersection_id: 'intersection_4', approach_id: 'westbound', movement: 'through', interval_minutes: 60, vehicle_count: isHoldout ? 385 : 388, timestamp: new Date().toISOString() },
-        ]
-      }
-      const imported = await importFieldObservations(sampleDataset)
-      if (imported?.is_valid) {
-        const evalRes = await evaluateCalibration({ dataset_id: imported.dataset_id })
-        setCalibMessage(isRu ? evalRes.summary_ru : evalRes.summary_en)
-        await loadCaseStudy()
-      } else {
-        setCalibMessage(imported?.validation_errors?.join(', ') || 'Dataset validation failed')
-      }
-    } catch (err) {
-      console.error('Failed to import calibration data:', err)
-      setCalibMessage(err.message || 'Import failed')
+      const content = await file.text()
+      const isCsv = file.name.toLowerCase().endsWith('.csv')
+      const payload = isCsv
+        ? { format: 'csv', csv_text: content, purpose: importPurpose }
+        : { ...JSON.parse(content), purpose: importPurpose }
+      const result = await importFieldObservations(payload)
+      setImportDiagnostics(result)
+      const accepted = (result.diagnostics || []).filter((item) => item.status === 'ACCEPTED').length
+      setCalibMessage(isRu
+        ? `Проверено строк: ${(result.diagnostics || []).length}; принято: ${accepted}; отклонено: ${(result.diagnostics || []).length - accepted}.`
+        : `Rows checked: ${(result.diagnostics || []).length}; accepted: ${accepted}; rejected: ${(result.diagnostics || []).length - accepted}.`)
+      fetchCalibrationDatasets().then((data) => setCalibrationDatasets(data.datasets || [])).catch(() => null)
+    } catch (error) {
+      setCalibMessage(isRu ? `Импорт не выполнен: ${error.message}` : `Import failed: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -138,14 +141,11 @@ export function CaseStudyModal({
   const primaryOutcomes = caseStudy?.primary_outcomes || []
   const secondaryOutcomes = caseStudy?.secondary_outcomes || []
   const policyComp = caseStudy?.policy_comparison || {}
-  const tradeoffs = caseStudy?.tradeoffs || {}
-  const robustness = caseStudy?.robustness || {}
   const calib = caseStudy?.calibration_status || {}
   const repro = caseStudy?.reproducibility_record || {}
   const epStmts = caseStudy?.epistemic_statements || []
   const provViews = caseStudy?.provenance_views || {}
   const nextAction = caseStudy?.next_action || {}
-  const mvr = caseStudy?.model_vs_reality || {}
 
   const title = isRu ? caseStudy?.title_ru || caseStudy?.title : caseStudy?.title
   const problem = isRu ? caseStudy?.problem_statement_ru || caseStudy?.problem_statement : caseStudy?.problem_statement
@@ -217,7 +217,7 @@ export function CaseStudyModal({
               <span>📍</span>
               <span>{spatial.city_name || 'Tashkent'}</span>
               <span style={{ color: 'var(--text-muted)' }}>›</span>
-              <span>{isRu ? (spatial.district_name_ru || spatial.district_name || 'Юнусабадский район') : (spatial.district_name || 'Mirzo Ulugbek District')}</span>
+              <span>{isRu ? (spatial.district_name_ru || spatial.district_name || 'Неверифицированный демонстрационный район') : (spatial.district_name || 'Unverified demonstration district')}</span>
               <span style={{ color: 'var(--text-muted)' }}>›</span>
               <span style={{ color: '#38bdf8' }}>{isRu ? (spatial.corridor_name_ru || spatial.corridor_name || 'Центральный коридор') : (spatial.corridor_name || 'Central Corridor')}</span>
             </div>
@@ -241,16 +241,6 @@ export function CaseStudyModal({
               title="Toggle Technical Audit Mode (Reproducibility, Config Hash, Student-t CI)"
             >
               🛡️ {isRu ? 'Аудит-режим' : 'Audit Mode'}: {auditMode ? 'ON' : 'OFF'}
-            </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={handleRunCanonical}
-              disabled={runningExp}
-              style={{ fontSize: '0.8rem', padding: '0.45rem 0.8rem' }}
-              title="Re-run canonical multi-seed simulation experiment"
-            >
-              {runningExp ? '⏳ ' + (isRu ? 'Симуляция…' : 'Simulating…') : '🔬 ' + (isRu ? 'Перезапустить' : 'Re-run')}
             </button>
             <button
               type="button"
@@ -310,9 +300,9 @@ export function CaseStudyModal({
             }}
           >
             <span><strong>EXP:</strong> {repro.experiment_id || 'UM-EXP-2026-001'}</span>
-            <span><strong>NET:</strong> {repro.network_version || 'v1.2'}</span>
-            <span><strong>SEEDS:</strong> [{repro.seeds?.join(', ') || '42, 101, 2024'}] (n={repro.sample_size || 3})</span>
-            <span><strong>CI:</strong> Student-t 95% (df=2, t=4.303)</span>
+            <span><strong>NET:</strong> {repro.network_version || 'not recorded'}</span>
+            <span><strong>SEEDS:</strong> [{repro.seeds?.join(', ') || 'not evaluated'}] (n={repro.sample_size ?? 0})</span>
+            <span><strong>CI:</strong> {repro.confidence_interval_method || 'not evaluated'}</span>
             <span><strong>AGG:</strong> {repro.aggregation_method || 'IMPROVEMENT_OF_MEAN_METRICS'}</span>
             <span><strong>CALIB:</strong> {calib.status || 'UNCALIBRATED'}</span>
           </div>
@@ -423,25 +413,25 @@ export function CaseStudyModal({
                         style={{ background: 'rgba(34, 197, 94, 0.08)', border: `1px solid ${selectedProvenance === 'delay' ? '#4ade80' : 'rgba(34, 197, 94, 0.25)'}`, borderRadius: '8px', padding: '0.85rem', textAlign: 'center', cursor: 'pointer' }}
                       >
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{isRu ? 'Задержки на магистрали' : 'Delay Reduction'} ℹ️</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80', marginTop: '2px' }}>-{results.delay_reduction_pct || 24.2}%</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80', marginTop: '2px' }}>{formatSafeNumber(results.delay_reduction_pct, 1)}%</div>
                       </div>
                       <div
                         onClick={() => setSelectedProvenance(selectedProvenance === 'co2' ? null : 'co2')}
                         style={{ background: 'rgba(34, 197, 94, 0.08)', border: `1px solid ${selectedProvenance === 'co2' ? '#4ade80' : 'rgba(34, 197, 94, 0.25)'}`, borderRadius: '8px', padding: '0.85rem', textAlign: 'center', cursor: 'pointer' }}
                       >
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>CO₂ {isRu ? 'Выбросы' : 'Emissions'} ℹ️</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80', marginTop: '2px' }}>-{results.co2_reduction_pct || 10.3}%</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#4ade80', marginTop: '2px' }}>{formatSafeNumber(results.co2_reduction_pct, 1)}%</div>
                       </div>
                       <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '0.85rem', textAlign: 'center' }}>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{isRu ? 'Пропускная способность' : 'Throughput'}</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>+{results.throughput_increase_pct || 7.8}%</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>{formatSafeNumber(results.throughput_increase_pct, 1)}%</div>
                       </div>
                       <div
                         onClick={() => setSelectedProvenance(selectedProvenance === 'stops' ? null : 'stops')}
                         style={{ background: 'rgba(56, 189, 248, 0.08)', border: `1px solid ${selectedProvenance === 'stops' ? '#38bdf8' : 'rgba(56, 189, 248, 0.25)'}`, borderRadius: '8px', padding: '0.85rem', textAlign: 'center', cursor: 'pointer' }}
                       >
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{isRu ? 'Остановок на авто' : 'Stops Reduction'} ℹ️</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>-{results.stops_reduction_pct || 38.5}%</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>{formatSafeNumber(results.stops_reduction_pct, 1)}%</div>
                       </div>
                     </div>
 
@@ -532,7 +522,7 @@ export function CaseStudyModal({
                             </div>
                             <div>
                               <div style={{ color: 'var(--text-muted)' }}>CO₂</div>
-                              <div style={{ fontWeight: 600, color: '#fff' }}>{Number(pItem.co2_kg || 0).toFixed(1)}kg</div>
+                              <div style={{ fontWeight: 600, color: '#fff' }}>{Number(pItem.sumo_co2_kg || 0).toFixed(4)}kg</div>
                             </div>
                             <div>
                               <div style={{ color: 'var(--text-muted)' }}>{isRu ? 'Поток' : 'Throughput'}</div>
@@ -679,7 +669,7 @@ export function CaseStudyModal({
                         📥 {isRu ? 'Импорт натурных данных, калибровка и критерий GEH' : 'Field Observation Import, Calibration & GEH Validation'}
                       </h4>
                       <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                        {isRu ? 'Разделение калибровочного и проверочного (holdout) наборов данных. Для валидации требуется GEH < 5.0 для >= 85% потоков (UK WebTAG).' : 'Separation of calibration and independent holdout datasets. Validation requires GEH < 5.0 for >= 85% of flows (UK WebTAG standard).'}
+                        {isRu ? 'Калибровочный и независимый проверочный (holdout) наборы разделены. Для статуса VALIDATED применяются настроенные критерии UrbanMind, включая GEH.' : 'Calibration and independent holdout datasets are separated. VALIDATED uses UrbanMind configured acceptance criteria, including GEH.'}
                       </p>
                     </div>
                     <span style={{ fontSize: '0.78rem', padding: '4px 10px', borderRadius: '4px', background: calib.status === 'VALIDATED' ? 'rgba(74, 222, 128, 0.2)' : calib.status === 'CALIBRATED' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(248, 113, 113, 0.15)', color: calib.status === 'VALIDATED' ? '#4ade80' : calib.status === 'CALIBRATED' ? '#38bdf8' : '#f87171', fontWeight: 700 }}>
@@ -693,6 +683,23 @@ export function CaseStudyModal({
                     </div>
                   )}
 
+                  <input ref={fileInputRef} type="file" accept=".csv,.json,application/json,text/csv" onChange={handleObservationFile} style={{ display: 'none' }} />
+
+                  <div style={{ background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251, 191, 36, 0.28)', borderRadius: '6px', padding: '0.75rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fbbf24' }}>{isRu ? 'Сопоставление SUMO:' : 'SUMO mapping coverage:'}</strong>{' '}
+                    {mappingInfo?.coverage?.enabled_movement_count || 0} {isRu ? 'подтвержденных направлений.' : 'verified movements.'}{' '}
+                    {mappingInfo?.coverage?.limitation || (isRu ? 'Статус сопоставления загружается.' : 'Mapping status is loading.')}
+                    {mappingInfo?.coverage?.verification_status_counts && (
+                      <span style={{ display: 'block', marginTop: '4px' }}>
+                        {Object.entries(mappingInfo.coverage.verification_status_counts).map(([status, count]) => `${status}: ${count}`).join(' · ')}
+                      </span>
+                    )}
+                  </div>
+
+                  <button type="button" className="ghost-button" onClick={downloadObservationTemplate} style={{ alignSelf: 'flex-start', padding: '0.45rem 0.85rem', fontSize: '0.78rem' }}>
+                    ⇩ {isRu ? 'Скачать пустой шаблон CSV' : 'Download empty CSV template'}
+                  </button>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
                     {/* Calibration Dataset Action */}
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -705,11 +712,11 @@ export function CaseStudyModal({
                       <button
                         type="button"
                         className="ghost-button"
-                        onClick={() => handleImportSampleData('CALIBRATION')}
+                        onClick={() => beginObservationUpload('CALIBRATION')}
                         disabled={loading}
                         style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', width: '100%' }}
                       >
-                        📥 {isRu ? 'Загрузить данные калибровки' : 'Import Calibration Dataset'}
+                        📥 {isRu ? 'Загрузить CSV / JSON' : 'Upload CSV / JSON'}
                       </button>
                     </div>
 
@@ -719,18 +726,40 @@ export function CaseStudyModal({
                         2. {isRu ? 'Независимый проверочный набор (Holdout Validation)' : 'Independent Holdout Dataset'}
                       </strong>
                       <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem 0' }}>
-                        {isRu ? 'Независимая проверка для перехода в статус VALIDATED с оценкой статистики GEH.' : 'Independent verification required for VALIDATED status with WebTAG GEH evaluation.'}
+                        {isRu ? 'Независимая проверка обязательна для перехода в статус VALIDATED с оценкой GEH.' : 'Independent verification is required for VALIDATED status with GEH evaluation.'}
                       </p>
                       <button
                         type="button"
                         className="accent"
-                        onClick={() => handleImportSampleData('VALIDATION_HOLDOUT')}
+                        onClick={() => beginObservationUpload('VALIDATION_HOLDOUT')}
                         disabled={loading}
                         style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', width: '100%' }}
                       >
-                        🛡️ {isRu ? 'Загрузить проверочный набор (Holdout)' : 'Import Holdout & Validate'}
+                        🛡️ {isRu ? 'Загрузить Holdout CSV / JSON' : 'Upload Holdout CSV / JSON'}
                       </button>
                     </div>
+                  </div>
+
+                  {importDiagnostics && (
+                    <div style={{ maxHeight: '190px', overflow: 'auto', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '0.65rem', fontSize: '0.75rem' }}>
+                      <strong style={{ color: '#fff' }}>{isRu ? 'Диагностика импорта' : 'Import diagnostics'}</strong>
+                      {(importDiagnostics.diagnostics || []).map((item) => (
+                        <div key={item.row} style={{ marginTop: '5px', color: item.status === 'ACCEPTED' ? '#4ade80' : '#f87171' }}>
+                          {isRu ? 'Строка' : 'Row'} {item.row}: {item.status}{item.errors?.length ? ` — ${item.errors.join(' ')}` : ''}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {calibrationDatasets.length > 0 && (
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: '#fff' }}>{isRu ? 'Импортированные наборы:' : 'Imported datasets:'}</strong>{' '}
+                      {calibrationDatasets.map((item) => `${item.dataset_id} (${item.purpose}, ${item.record_count} rows)`).join(' · ')}
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {isRu ? 'Оценка калибровки остается недоступной до появления подтвержденного SUMO-сопоставления и потоков того же направления и интервала.' : 'Calibration evaluation remains unavailable until a verified SUMO mapping and comparable movement counts for the same interval are available.'}
                   </div>
                 </div>
               )}
@@ -780,7 +809,7 @@ export function CaseStudyModal({
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                         <div><strong>{isRu ? 'Длительность:' : 'Duration:'}</strong> {fieldProtocol.recommended_duration_days} {isRu ? 'дней' : 'days'}</div>
                         <div><strong>{isRu ? 'Интервал:' : 'Interval:'}</strong> {fieldProtocol.sampling_interval_min} min</div>
-                        <div><strong>{isRu ? 'Узлы:' : 'Nodes:'}</strong> 4 {isRu ? 'перекрестка' : 'intersections'}</div>
+                        <div><strong>{isRu ? 'Узлы:' : 'Nodes:'}</strong> {fieldProtocol.intersections?.length || 0} {isRu ? 'верифицированных перекрестков' : 'verified intersections'}</div>
                       </div>
                     </div>
                   )}

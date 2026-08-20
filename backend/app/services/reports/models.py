@@ -91,6 +91,7 @@ class TradeoffBreakdown(TypedDict, total=False):
 
 
 class RobustnessEvidence(TypedDict, total=False):
+    state: Literal["NOT_EVALUATED", "SINGLE_RUN", "MULTI_SEED"]
     sample_count: int
     seeds: List[int]
     stats: Dict[str, Dict[str, float]]  # metric_key -> {mean, std_dev, ci_95_low, ci_95_high, min, max}
@@ -160,4 +161,3 @@ class DecisionReport(TypedDict, total=False):
     recommendation_verdict_ru: str
     municipal_disclaimer_en: str
     municipal_disclaimer_ru: str
-

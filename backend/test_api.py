@@ -330,13 +330,19 @@ def test_canonical_experiment_api():
     assert cfg["is_immutable"] is True
 
 
+def test_canonical_rerun_requires_explicit_confirmation():
+    res = client.post("/api/experiments/canonical/run", json={"language": "en"})
+    assert res.status_code == 403
+    assert "REGENERATE_CANONICAL_ARTIFACT" in res.json()["detail"]
+
+
 def test_case_studies_api():
     # 1. Canonical
     can_res = client.get("/api/case-studies/canonical")
     assert can_res.status_code == 200, can_res.text
     cs = can_res.json()
     assert cs["case_id"] == "UM-CS-2026-001"
-    assert "Central Tashkent Corridor" in cs["title"]
+    assert "Configured Demonstration Corridor" in cs["title"]
 
     # 2. List
     list_res = client.get("/api/case-studies")
@@ -355,6 +361,11 @@ def test_case_studies_api():
 
 
 def test_field_calibration_api():
+    mappings_res = client.get("/api/mappings")
+    assert mappings_res.status_code == 200
+    assert mappings_res.json()["coverage"]["coverage_status"] == "UNAVAILABLE"
+    assert client.get("/api/mappings/unverified_intersection").status_code == 404
+
     # 1. Import
     import_res = client.post("/api/calibration/import", json={
         "dataset_id": "DS-API-001",
@@ -366,14 +377,27 @@ def test_field_calibration_api():
     })
     assert import_res.status_code == 200, import_res.text
     ds = import_res.json()
-    assert ds["is_valid"] is True
+    assert ds["is_valid"] is False
+    assert ds["diagnostics"]
+    assert ds["mapping_coverage"]["enabled_movement_count"] == 0
+
+    datasets_res = client.get("/api/calibration/datasets")
+    assert datasets_res.status_code == 200
+    assert any(item["dataset_id"] == "DS-API-001" for item in datasets_res.json()["datasets"])
+
+    template_res = client.get("/api/calibration/template")
+    assert template_res.status_code == 200
+    assert "vehicle_class" in template_res.json()["csv_header"]
 
     # 2. Evaluate
     eval_res = client.post("/api/calibration/evaluate", json={"dataset_id": "DS-API-001"})
-    assert eval_res.status_code == 200, eval_res.text
-    ev = eval_res.json()
-    assert ev["dataset_id"] == "DS-API-001"
-    assert ev["status"] in ("PARTIALLY_CALIBRATED", "CALIBRATED")
+    assert eval_res.status_code == 409, eval_res.text
+    assert "movement-level SUMO counts are unavailable" in eval_res.json()["detail"]
+
+    injected = client.post("/api/calibration/evaluate", json={
+        "dataset_id": "DS-API-001", "simulated_counts": {"not-authoritative": 1}
+    })
+    assert injected.status_code == 400
 
 
 def test_calibration_protocol_api():
@@ -382,8 +406,6 @@ def test_calibration_protocol_api():
     proto = res.json()
     assert "protocol_id" in proto
     assert proto["recommended_duration_days"] >= 1
-    assert len(proto["intersections"]) >= 1
-
-
-
-
+    # No named field intersections are asserted until they are mapped and
+    # approved against the versioned SUMO topology.
+    assert proto["intersections"] == []

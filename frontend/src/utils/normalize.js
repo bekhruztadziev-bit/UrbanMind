@@ -320,7 +320,7 @@ export function normalizePolicyComparison(pc = {}) {
         accessibility_score: safeNumber(item.accessibility_score, 0),
         average_waiting_seconds: safeNumber(item.average_waiting_seconds, 0),
         average_travel_time_seconds: safeNumber(item.average_travel_time_seconds, 0),
-        co2_kg: safeNumber(item.co2_kg, 0),
+        sumo_co2_kg: safeNumber(item.sumo_co2_kg, 0),
         throughput_vehicles_per_hour: safeNumber(item.throughput_vehicles_per_hour, 0),
         stops_per_vehicle: safeNumber(item.stops_per_vehicle, 0),
         delay_improvement_pct: safeNumber(item.delay_improvement_pct, 0),

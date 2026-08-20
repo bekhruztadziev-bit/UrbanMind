@@ -2,6 +2,7 @@ import math
 import os
 import sys
 import threading
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Tuple, Dict, List, Optional
@@ -9,6 +10,8 @@ from typing import Any, Tuple, Dict, List, Optional
 import traci
 
 from app.services.simulation.models import SimulationRequest, RawSimulationResult
+from app.services.calibration.mappings import get_mapping_registry
+from app.services.simulation.movement_counter import MovementCounter, store_movement_counts
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_SCENARIO_DIR = PROJECT_ROOT / "backend" / "sim" / "mahalla-scenario"
@@ -43,15 +46,9 @@ SUMO_BINARY = _find_sumo_binary()
 # Global lock to ensure only one TraCI instance runs at a time
 _traci_lock = threading.Lock()
 
-# Corridor signal sequence and coordinates from mahalla_data.py
-CORRIDOR_SIGNAL_ORDER = [
-    {"signal_id": "cluster_1", "name": "Main Square", "coords": (41.3168, 69.2666)},
-    {"signal_id": "cluster_2", "name": "School Junction", "coords": (41.3182, 69.2684)},
-    {"signal_id": "cluster_5", "name": "North Residential Corridor", "coords": (41.3199, 69.2718)},
-    {"signal_id": "cluster_3", "name": "Clinic Roundabout", "coords": (41.3157, 69.2692)},
-    {"signal_id": "cluster_6", "name": "Bus Terminal Link", "coords": (41.3136, 69.2707)},
-    {"signal_id": "cluster_4", "name": "Market Edge", "coords": (41.3149, 69.2638)},
-]
+# No fictional geographic signal ordering is used by production logic. A
+# green-wave study must supply a separately verified sequence.
+CORRIDOR_SIGNAL_ORDER: List[Dict[str, Any]] = []
 
 
 def haversine_distance_meters(coord1: Tuple[float, float], coord2: Tuple[float, float]) -> float:
@@ -75,6 +72,8 @@ def calculate_green_wave_offsets(
     Δφᵢ = round(dᵢ / v_target) mod C
     """
     seq = signal_sequence or CORRIDOR_SIGNAL_ORDER
+    if not seq:
+        return {}
     speed_mps = max(1.0, (target_speed_kmh * 1000.0) / 3600.0)
     cycle = max(10, cycle_length)
     
@@ -107,7 +106,7 @@ def calculate_green_wave_offsets(
 def _scenario_signal_selection() -> Tuple[str, int]:
     net_path = SCENARIO_DIR / "osm.net.xml.gz"
     if not net_path.exists():
-        return "cluster_1", 0
+        raise RuntimeError("SUMO network file is unavailable for signal selection.")
 
     try:
         import gzip
@@ -121,10 +120,10 @@ def _scenario_signal_selection() -> Tuple[str, int]:
                 state = phase.get("state", "")
                 if "G" in state or "g" in state:
                     return str(tl_logic.get("id")), int(phase_index)
-    except Exception:
-        pass
+    except Exception as exc:
+        raise RuntimeError("Unable to inspect SUMO signal topology.") from exc
 
-    return "cluster_1", 0
+    raise RuntimeError("No signal phase containing green state was found in the SUMO network.")
 
 
 def _is_sumo_available() -> bool:
@@ -149,6 +148,7 @@ def _generate_fallback_simulation(request: SimulationRequest) -> RawSimulationRe
     traffic_multiplier = float(request.get("traffic_multiplier", 1.0))
     intervention = request.get("intervention")
     seed = request.get("seed")
+    simulation_id = str(request.get("simulation_id") or f"sim-{uuid.uuid4()}")
 
     # Baseline calibration for Tashkent corridor
     base_speed_mps = 7.78       # ~28.0 km/h
@@ -245,34 +245,62 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
         # Green-wave corridor coordination: synchronizes phase offsets along the corridor
         tls_ids = set(traci.trafficlight.getIDList())
         target_speed = float(intervention.get("target_speed_kmh", 40.0))
-        offsets_map = calculate_green_wave_offsets(target_speed_kmh=target_speed)
+        offsets_map = calculate_green_wave_offsets(
+            target_speed_kmh=target_speed,
+            signal_sequence=intervention.get("signal_sequence"),
+        )
+        if not offsets_map:
+            raise ValueError("Green Wave requires an explicit, field-verified signal sequence; no implicit corridor order is configured.")
         
         coordinated_count = 0
         applied_signals = []
+        failed_signals = []
 
         for sig_id, offset_info in offsets_map.items():
             if sig_id in tls_ids:
                 try:
-                    current_duration = traci.trafficlight.getPhaseDuration(sig_id)
-                    # Extend main corridor green phase duration & sync offset
-                    new_duration = max(20, int(round(current_duration * 1.25)))
-                    traci.trafficlight.setPhaseDuration(sig_id, new_duration)
+                    programs = traci.trafficlight.getAllProgramLogics(sig_id)
+                    phases = programs[0].phases if programs else []
+                    cycle_seconds = sum(float(phase.duration) for phase in phases)
+                    if cycle_seconds <= 0:
+                        continue
+                    # Start each controller at its calculated point in the
+                    # cycle.  This is a phase offset, not a green-duration
+                    # extension; normal program durations resume afterwards.
+                    offset = float(offset_info["offset_seconds"]) % cycle_seconds
+                    elapsed = 0.0
+                    phase_index = 0
+                    remaining = float(phases[0].duration)
+                    for idx, phase in enumerate(phases):
+                        phase_end = elapsed + float(phase.duration)
+                        if offset < phase_end:
+                            phase_index = idx
+                            remaining = max(1.0, phase_end - offset)
+                            break
+                        elapsed = phase_end
+                    traci.trafficlight.setPhase(sig_id, phase_index)
+                    traci.trafficlight.setPhaseDuration(sig_id, remaining)
                     coordinated_count += 1
                     applied_signals.append({
                         "signal_id": sig_id,
                         "offset_seconds": offset_info["offset_seconds"],
                         "distance_meters": offset_info["distance_meters"],
-                        "duration": new_duration,
+                        "phase_index": phase_index,
+                        "remaining_phase_seconds": round(remaining, 2),
                     })
-                except Exception:
-                    pass
+                except Exception as exc:
+                    failed_signals.append({"signal_id": sig_id, "error": str(exc)})
+
+        if not applied_signals:
+            raise RuntimeError("Green Wave could not be applied to any signal in the active SUMO network.")
 
         return {
             "type": "green_wave_coordination",
             "target_speed_kmh": target_speed,
             "coordinated_signals_count": coordinated_count,
             "applied_signals": applied_signals,
-            "corridor": "Tashkent Central Corridor",
+            "failed_signals": failed_signals,
+            "corridor": "explicitly supplied verified signal sequence",
         }
 
     elif intervention_type in ["extend_green", "reduce_green"]:
@@ -321,15 +349,12 @@ def _apply_intervention(intervention: dict[str, Any] | None = None) -> dict[str,
 
 
 def run_simulation(request: SimulationRequest) -> RawSimulationResult:
-    """Run the canonical MahallaMind SUMO scenario and return pure raw observations.
+    """Run the canonical SUMO scenario and return raw TraCI observations.
 
-    If SUMO is not installed / configured (e.g. in cloud/serverless previews),
-    gracefully generates a calibrated, deterministic simulation result.
+    Simulation requests are never replaced with synthetic values: when SUMO is
+    unavailable, callers receive an error rather than fabricated evidence.
     """
-    try:
-        _ensure_sumo_ready()
-    except Exception:
-        return _generate_fallback_simulation(request)
+    _ensure_sumo_ready()
 
     req_steps = request.get("steps", 300)
     warmup_steps = request.get("warmup_steps", 0)
@@ -345,6 +370,7 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
     intervention = request.get("intervention")
     traffic_multiplier = request.get("traffic_multiplier", 1.0)
     seed = request.get("seed")
+    simulation_id = str(request.get("simulation_id") or f"sim-{uuid.uuid4()}")
 
     sumo_cmd = [
         str(SUMO_BINARY),
@@ -382,6 +408,9 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
 
             # Capture state at boundary
             sim_start_time = traci.simulation.getTime()
+            movement_counter = MovementCounter(
+                get_mapping_registry().eligible_records(), simulation_id, seed, sim_start_time, measurement_steps
+            )
             for vehicle_id in traci.vehicle.getIDList():
                 try:
                     wt = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
@@ -419,6 +448,7 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
             for _ in range(measurement_steps):
                 traci.simulationStep()
                 current_sim_time = traci.simulation.getTime()
+                movement_counter.observe_step(traci)
 
                 # Track departed vehicles
                 departed_now = traci.simulation.getDepartedIDList()
@@ -521,7 +551,10 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
             measurement_hours = max(1, measurement_steps) / 3600.0
             throughput_vph = round(len(completed_vehicles_wait) / measurement_hours, 1) if measurement_hours > 0 else 0.0
 
+            movement_counts = movement_counter.export(traci.simulation.getTime(), traci.getVersion())
+            store_movement_counts(simulation_id, movement_counts)
             return {
+                "simulation_id": simulation_id,
                 "steps": total_steps,
                 "warmup_steps": warmup_steps,
                 "measurement_steps": measurement_steps,
@@ -552,9 +585,10 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
                 "total_fuel_mg": total_fuel_mg,
                 "is_fallback": False,
                 "seed": seed,
+                "movement_counts": movement_counts,
             }
-        except Exception:
-            return _generate_fallback_simulation(request)
+        except Exception as exc:
+            raise RuntimeError(f"SUMO/TraCI simulation failed: {exc}") from exc
         finally:
             if connected:
                 try:

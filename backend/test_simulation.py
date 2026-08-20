@@ -6,6 +6,7 @@ from app.services.simulation.metrics import calculate_metrics, estimate_candidat
 from app.services.simulation.interventions import get_candidate_interventions
 from app.services.simulation.optimizer import evaluate_candidates, rank_candidates
 from app.services.simulation.policies import evaluate_policy_score, BALANCED_POLICY
+from app.services.simulation import session
 from app.services.simulation.session import run_simulation
 
 
@@ -84,7 +85,7 @@ def test_metrics_edge_cases():
 
 def test_interventions_registry():
     interventions = get_candidate_interventions("tl_1", 0)
-    assert len(interventions) == 8
+    assert len(interventions) == 4
     
     # Check structure
     for i in interventions:
@@ -96,6 +97,13 @@ def test_interventions_registry():
         if i["type"] in ["extend_green", "reduce_green"]:
             assert "traffic_light_id" in i
             assert "phase_index" in i
+        assert i["evaluation_mode"] == "SIMULATED"
+
+
+def test_simulation_requires_sumo(monkeypatch):
+    monkeypatch.setattr(session, "SUMO_HOME", None)
+    with pytest.raises(RuntimeError, match="SUMO_HOME"):
+        run_simulation({"steps": 1, "measurement_steps": 1, "scenario": "midday"})
 
 
 def test_optimizer_scoring_and_ranking():
@@ -153,8 +161,8 @@ def test_optimizer_best_candidate_selection():
     res = rank_candidates("midday", baseline, evaluated)
     
     assert res["baseline"]["average_speed_kmh"] == 20.0
-    assert len(res["candidates"]) == 8
-    assert len(res["ranked_candidates"]) == 8
+    assert len(res["candidates"]) == 4
+    assert len(res["ranked_candidates"]) == 4
     
     assert res["best_candidate"] is not None
     assert "selected_reason" in res["best_candidate"]

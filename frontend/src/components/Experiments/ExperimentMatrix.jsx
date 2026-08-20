@@ -4,7 +4,7 @@ import { safeNumber, formatSafeNumber } from '../../utils/normalize'
 const METRICS = [
   { key: 'mean_completed_vehicle_waiting_seconds', label: 'Completed-Trip Mean Delay (s)', higherWorse: true },
   { key: 'mean_active_vehicle_waiting_seconds', label: 'Active-Vehicle Mean Delay (s)', higherWorse: true },
-  { key: 'average_waiting_seconds', label: 'Step-weighted observed waiting (s)', higherWorse: true },
+  { key: 'average_waiting_seconds', label: 'Sampled accumulated waiting snapshot mean (s)', higherWorse: true },
   { key: 'average_travel_time_seconds', label: 'Travel Time (s)', higherWorse: true },
   { key: 'stops_per_vehicle', label: 'Stops / Vehicle', higherWorse: true },
   { key: 'mean_queue_length_meters', label: 'Queue Length (m)', higherWorse: true },
@@ -13,11 +13,6 @@ const METRICS = [
   { key: 'max_vehicle_count', label: 'Peak Vehicles', higherWorse: true },
   { key: 'sumo_co2_kg', label: 'CO₂ (kg)', higherWorse: true },
   { key: 'sumo_nox_g', label: 'NOₓ (g)', higherWorse: true },
-  { key: 'co2_kg', label: 'CO₂ est. (kg)', higherWorse: true },
-  { key: 'nox_g', label: 'NOₓ est. (g)', higherWorse: true },
-  { key: 'noise_db', label: 'Noise est. (dB)', higherWorse: true },
-  { key: 'pedestrian_delay_seconds', label: 'Ped. Delay (s)', higherWorse: true },
-  { key: 'accessibility_score', label: 'Accessibility', higherWorse: false },
 ]
 
 const EVAL_BADGE = {

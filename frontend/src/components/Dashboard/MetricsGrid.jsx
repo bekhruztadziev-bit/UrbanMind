@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAnimatedNumber, animateHighlight, MOTION } from '../../utils/motion'
 import { safeNumber } from '../../utils/normalize'
 
@@ -111,7 +111,7 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             CO₂
-            <span className="provenance-badge simulated" title="SUMO HBEFA Emission Model">
+            <span className="provenance-badge simulated" title="SUMO TraCI emission model">
               SIMULATED
             </span>
           </span>

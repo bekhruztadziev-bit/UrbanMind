@@ -86,7 +86,7 @@ def evaluate_candidates(
     base_queue = float(baseline.get("mean_queue_length_meters", 1.0) or 1.0)
     base_stops = float(baseline.get("stops_per_vehicle", 1.0) or 1.0)
     base_tp = float(baseline.get("throughput_vehicles_per_hour", 1.0) or 1.0)
-    base_co2 = float(baseline.get("co2_kg", 1.0) or 1.0)
+    base_co2 = float(baseline.get("sumo_co2_kg", 0.0) or 0.0)
 
     for entry, metrics in candidate_results:
         cand_speed = float(metrics.get("average_speed_kmh", 0.0) or 0.0)
@@ -95,7 +95,7 @@ def evaluate_candidates(
         cand_queue = float(metrics.get("mean_queue_length_meters", 0.0) or 0.0)
         cand_stops = float(metrics.get("stops_per_vehicle", 0.0) or 0.0)
         cand_tp = float(metrics.get("throughput_vehicles_per_hour", 0.0) or 0.0)
-        cand_co2 = float(metrics.get("co2_kg", 0.0) or 0.0)
+        cand_co2 = float(metrics.get("sumo_co2_kg", 0.0) or 0.0)
 
         # Percentage improvements (positive = improvement)
         delay_imp = round(((base_wait - cand_wait) / base_wait) * 100.0, 1) if base_wait > 0 else 0.0
@@ -233,7 +233,9 @@ def compute_policy_comparison(
             "accessibility_score": pb.get("accessibility_score", 0.0),
             "average_waiting_seconds": float(best["metrics"].get("average_waiting_seconds", 0.0)),
             "average_travel_time_seconds": float(best["metrics"].get("average_travel_time_seconds", 0.0)),
-            "co2_kg": float(best["metrics"].get("co2_kg", 0.0)),
+            # Policy scoring and comparison expose the same TraCI/SUMO CO2
+            # metric. Legacy derived co2_kg is intentionally not used here.
+            "sumo_co2_kg": float(best["metrics"].get("sumo_co2_kg", 0.0)),
             "throughput_vehicles_per_hour": float(best["metrics"].get("throughput_vehicles_per_hour", 0.0)),
             "stops_per_vehicle": float(best["metrics"].get("stops_per_vehicle", 0.0)),
             "delay_improvement_pct": float(delta.get("delay_improvement_pct", 0.0)),
@@ -309,4 +311,3 @@ def rank_candidates(
         "why_won_ru": why_won_ru,
         "why_won_en": why_won_en,
     }
-

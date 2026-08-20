@@ -10,82 +10,76 @@ from app.services.spatial.models import (
     CrossDistrictContext,
 )
 
-# Canonical Tashkent Central Corridor Intersections
+# Product demonstration labels. They are not field-verified intersections.
 TASHKENT_INTERSECTIONS: List[IntersectionEntity] = [
     {
-        "id": "intersection_1",
+        "id": "demo_signal_group_a",
         "corridor_id": "central_corridor",
-        "name": "Main Square",
-        "name_ru": "Главная площадь",
+        "name": "Signal Group A (demonstration)",
+        "name_ru": "Группа сигналов A (демонстрация)",
         "latitude": 41.3168,
         "longitude": 69.2666,
         "coords": (41.3168, 69.2666),
-        "traffic_light_id": "cluster_1",
-        "signal_ids": ["cluster_1"],
+        "signal_ids": [],
     },
     {
-        "id": "intersection_2",
+        "id": "demo_signal_group_b",
         "corridor_id": "central_corridor",
-        "name": "School Junction",
-        "name_ru": "Школьный перекресток",
+        "name": "Signal Group B (demonstration)",
+        "name_ru": "Группа сигналов B (демонстрация)",
         "latitude": 41.3182,
         "longitude": 69.2684,
         "coords": (41.3182, 69.2684),
-        "traffic_light_id": "cluster_2",
-        "signal_ids": ["cluster_2"],
+        "signal_ids": [],
     },
     {
-        "id": "intersection_3",
+        "id": "demo_signal_group_c",
         "corridor_id": "central_corridor",
-        "name": "Clinic Roundabout",
-        "name_ru": "Кольцо у поликлиники",
+        "name": "Signal Group C (demonstration)",
+        "name_ru": "Группа сигналов C (демонстрация)",
         "latitude": 41.3157,
         "longitude": 69.2692,
         "coords": (41.3157, 69.2692),
-        "traffic_light_id": "cluster_3",
-        "signal_ids": ["cluster_3"],
+        "signal_ids": [],
     },
     {
-        "id": "intersection_4",
+        "id": "demo_signal_group_d",
         "corridor_id": "central_corridor",
-        "name": "Market Edge",
-        "name_ru": "Рыночный узел",
+        "name": "Signal Group D (demonstration)",
+        "name_ru": "Группа сигналов D (демонстрация)",
         "latitude": 41.3149,
         "longitude": 69.2638,
         "coords": (41.3149, 69.2638),
-        "traffic_light_id": "cluster_4",
-        "signal_ids": ["cluster_4"],
+        "signal_ids": [],
     },
     {
-        "id": "intersection_5",
+        "id": "demo_signal_group_e",
         "corridor_id": "central_corridor",
-        "name": "North Residential Corridor",
-        "name_ru": "Северный жилой коридор",
+        "name": "Signal Group E (demonstration)",
+        "name_ru": "Группа сигналов E (демонстрация)",
         "latitude": 41.3199,
         "longitude": 69.2718,
         "coords": (41.3199, 69.2718),
-        "traffic_light_id": "cluster_5",
-        "signal_ids": ["cluster_5"],
+        "signal_ids": [],
     },
     {
-        "id": "intersection_6",
+        "id": "demo_signal_group_f",
         "corridor_id": "central_corridor",
-        "name": "Bus Terminal Link",
-        "name_ru": "Автовокзальный узел",
+        "name": "Signal Group F (demonstration)",
+        "name_ru": "Группа сигналов F (демонстрация)",
         "latitude": 41.3136,
         "longitude": 69.2707,
         "coords": (41.3136, 69.2707),
-        "traffic_light_id": "cluster_6",
-        "signal_ids": ["cluster_6"],
+        "signal_ids": [],
     },
 ]
 
-# Canonical Central Tashkent Corridor
+# Configured simulation extent; no municipal district or named corridor claim.
 CENTRAL_CORRIDOR: CorridorEntity = {
     "id": "central_corridor",
     "district_id": "central_tashkent",
-    "name": "Central Tashkent Corridor",
-    "name_ru": "Центральный коридор Ташкента",
+    "name": "Configured Demonstration Corridor",
+    "name_ru": "Настроенный демонстрационный коридор",
     "bounds": {
         "southwest": [41.3080, 69.2550],
         "northeast": [41.3250, 69.2780],
@@ -96,18 +90,16 @@ CENTRAL_CORRIDOR: CorridorEntity = {
             [41.3250, 69.2550],
         ],
     },
-    "length_meters": 2450.0,
-    "speed_limit_kmh": 60.0,
     "intersection_ids": [i["id"] for i in TASHKENT_INTERSECTIONS],
     "intersections": TASHKENT_INTERSECTIONS,
 }
 
-# Canonical Central Tashkent District
+# District assignment is intentionally unavailable pending field verification.
 CENTRAL_DISTRICT: DistrictEntity = {
     "id": "central_tashkent",
     "city_id": "tashkent",
-    "name": "Mirzo Ulugbek / Yunusabad District",
-    "name_ru": "Мирзо-Улугбекский / Юнусабадский район",
+    "name": "Unverified demonstration district",
+    "name_ru": "Неверифицированный демонстрационный район",
     "bounds": {
         "southwest": [41.2950, 69.2400],
         "northeast": [41.3400, 69.2950],
@@ -116,27 +108,7 @@ CENTRAL_DISTRICT: DistrictEntity = {
     "corridors": [CENTRAL_CORRIDOR],
 }
 
-# Neighboring Districts (for cross-district readiness)
-NEIGHBORING_DISTRICTS: List[DistrictEntity] = [
-    {
-        "id": "chilanzar_district",
-        "city_id": "tashkent",
-        "name": "Chilanzar District",
-        "name_ru": "Чиланзарский район",
-        "bounds": {"southwest": [41.2600, 69.1800], "northeast": [41.2950, 69.2400]},
-        "corridor_ids": ["bunyodkor_avenue"],
-        "corridors": [],
-    },
-    {
-        "id": "yakkasaray_district",
-        "city_id": "tashkent",
-        "name": "Yakkasaray District",
-        "name_ru": "Яккасарайский район",
-        "bounds": {"southwest": [41.2700, 69.2400], "northeast": [41.3000, 69.2800]},
-        "corridor_ids": ["shota_rustaveli_avenue"],
-        "corridors": [],
-    },
-]
+NEIGHBORING_DISTRICTS: List[DistrictEntity] = []
 
 # Canonical Tashkent City Entity
 TASHKENT_CITY: CityEntity = {
@@ -150,7 +122,7 @@ TASHKENT_CITY: CityEntity = {
         "southwest": [41.20, 69.10],
         "northeast": [41.40, 69.40],
     },
-    "district_ids": ["central_tashkent", "chilanzar_district", "yakkasaray_district"],
+    "district_ids": ["central_tashkent"],
     "districts": [CENTRAL_DISTRICT, *NEIGHBORING_DISTRICTS],
 }
 
@@ -161,7 +133,7 @@ def get_spatial_hierarchy() -> CityEntity:
 
 
 def get_default_spatial_scope() -> SpatialScopeRef:
-    """Returns the default spatial scope (Central Tashkent Corridor)."""
+    """Return a clearly labelled configured demonstration scope."""
     return {
         "level": "corridor",
         "id": CENTRAL_CORRIDOR["id"],
@@ -170,6 +142,7 @@ def get_default_spatial_scope() -> SpatialScopeRef:
         "city_name": TASHKENT_CITY["name"],
         "district_name": CENTRAL_DISTRICT["name"],
         "corridor_name": CENTRAL_CORRIDOR["name"],
+        "spatial_provenance": "PRODUCT_DEMO_LABEL",
     }
 
 
@@ -191,12 +164,8 @@ def get_cross_district_context() -> CrossDistrictContext:
     return {
         "primary_scope": primary,
         "neighboring_scopes": neighbors,
-        "spillover_effects": {
-            "side_street_queue_spillover_risk": "low",
-            "downstream_bottleneck_impact": "neutral",
-            "cross_district_transit_continuity": "preserved",
-        },
-        "city_level_impact_indicator": 0.12,
+        "spillover_effects": {"status": "NOT_EVALUATED"},
+        "city_level_impact_indicator": None,
     }
 
 

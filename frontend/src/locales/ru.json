@@ -279,7 +279,7 @@
   "pilotCaseTitle": "Муниципальные пилотные проекты и обоснования",
   "modelVsReality": "Модель vs Реальность",
   "observedData": "Натурные данные (Физические датчики)",
-  "simulatedData": "Моделируемая физика (SUMO / HBEFA)",
+  "simulatedData": "Выходные данные модели (SUMO / TraCI)",
   "derivedData": "Производные индикаторы (Движок политик)",
   "evidenceStrength": "Сила доказательств",
   "evidenceLow": "НИЗКАЯ",
@@ -317,6 +317,6 @@
   "primaryOutcomes": "Первичные показатели мобильности",
   "secondaryOutcomes": "Вторичные показатели",
   "holdoutValidation": "Проверочная валидация (Holdout)",
-  "gehStandard": "Стандарт GEH (UK WebTAG)"
+  "gehStandard": "Настроенный критерий GEH UrbanMind"
 }
-
+

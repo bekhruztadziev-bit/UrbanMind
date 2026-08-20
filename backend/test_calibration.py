@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 import pytest
+import app.services.calibration.service as calibration_service
 from app.services.calibration.service import (
     compute_validation_metrics,
     get_calibration_status,
     get_model_vs_reality_breakdown,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_calibration_state():
+    """Keep status assertions independent of imports performed by other tests."""
+    calibration_service._FIELD_DATASETS_STORE.clear()
+    calibration_service._ACTIVE_CALIBRATION_STATUS = "UNCALIBRATED"
+    calibration_service._ACTIVE_CALIBRATION_DATASET_ID = None
+    calibration_service._ACTIVE_VALIDATION_DATASET_ID = None
 
 
 def test_compute_validation_metrics_identical():

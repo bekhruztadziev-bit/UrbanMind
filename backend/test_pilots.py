@@ -14,8 +14,8 @@ def test_list_pilot_cases():
     assert len(pilots) >= 1
     tashkent_pilot = next((p for p in pilots if p["id"] == "PILOT-TASHKENT-CENTRAL-01"), None)
     assert tashkent_pilot is not None
-    assert "Tashkent Central Corridor" in tashkent_pilot["title"]
-    assert tashkent_pilot["status"] == "FIELD_VALIDATION"
+    assert "Configured Demonstration Corridor" in tashkent_pilot["title"]
+    assert tashkent_pilot["status"] == "DRAFT"
     assert tashkent_pilot["calibration_status"] == "UNCALIBRATED"
 
 

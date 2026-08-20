@@ -1,4 +1,5 @@
 import pytest
+from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
 
 from app.services.simulation.session import (
@@ -21,13 +22,17 @@ def test_haversine_distance():
 
 
 def test_green_wave_offsets_calculation():
-    # Target speed 40 km/h (~11.11 m/s), cycle length 90s
-    offsets = calculate_green_wave_offsets(target_speed_kmh=40.0, cycle_length=90)
-    
-    assert len(offsets) == len(CORRIDOR_SIGNAL_ORDER)
-    assert "cluster_1" in offsets
-    assert offsets["cluster_1"]["offset_seconds"] == 0
-    assert offsets["cluster_1"]["distance_meters"] == 0.0
+    # No production progression order is inferred from map labels.
+    assert CORRIDOR_SIGNAL_ORDER == []
+    assert calculate_green_wave_offsets(target_speed_kmh=40.0, cycle_length=90) == {}
+
+    sequence = [
+        {"signal_id": "sig-a", "name": "A", "coords": (41.3000, 69.2000)},
+        {"signal_id": "sig-b", "name": "B", "coords": (41.3010, 69.2010)},
+    ]
+    offsets = calculate_green_wave_offsets(target_speed_kmh=40.0, cycle_length=90, signal_sequence=sequence)
+    assert offsets["sig-a"]["offset_seconds"] == 0
+    assert offsets["sig-a"]["distance_meters"] == 0.0
 
     # Ensure all offsets are within cycle range [0, 89]
     for sig_id, data in offsets.items():
@@ -49,12 +54,18 @@ def test_green_wave_cycle_wrapping():
 @patch("app.services.simulation.session.traci")
 def test_green_wave_apply_intervention_valid_and_invalid(mock_traci):
     # Mock only 2 signals present in SUMO network
-    mock_traci.trafficlight.getIDList.return_value = ["cluster_1", "cluster_2"]
-    mock_traci.trafficlight.getPhaseDuration.return_value = 30
+    mock_traci.trafficlight.getIDList.return_value = ["sig-a", "sig-b"]
+    mock_traci.trafficlight.getAllProgramLogics.return_value = [
+        SimpleNamespace(phases=[SimpleNamespace(duration=30), SimpleNamespace(duration=30)])
+    ]
 
     intervention = {
         "type": "green_wave_coordination",
         "target_speed_kmh": 40.0,
+        "signal_sequence": [
+            {"signal_id": "sig-a", "coords": (41.3000, 69.2000)},
+            {"signal_id": "sig-b", "coords": (41.3010, 69.2010)},
+        ],
     }
     result = _apply_intervention(intervention)
 
@@ -62,6 +73,13 @@ def test_green_wave_apply_intervention_valid_and_invalid(mock_traci):
     assert result["type"] == "green_wave_coordination"
     assert result["coordinated_signals_count"] == 2
     assert len(result["applied_signals"]) == 2
+
+
+@patch("app.services.simulation.session.traci")
+def test_green_wave_rejects_an_implicit_or_unapplied_sequence(mock_traci):
+    mock_traci.trafficlight.getIDList.return_value = []
+    with pytest.raises(ValueError, match="explicit, field-verified signal sequence"):
+        _apply_intervention({"type": "green_wave_coordination"})
 
 
 def test_tradeoff_analysis_classification():

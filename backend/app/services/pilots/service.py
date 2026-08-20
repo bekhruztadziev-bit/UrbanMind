@@ -8,44 +8,30 @@ from app.services.pilots.models import PilotCase, PilotStatus
 from app.services.spatial.hierarchy import get_default_spatial_scope
 
 
-# In-memory pilot registry initialized with a realistic municipal pilot case for Tashkent
+# In-memory pilot registry initialized as a planning workspace, not evidence.
 _PILOT_CASES_DB: Dict[str, PilotCase] = {
     "PILOT-TASHKENT-CENTRAL-01": {
         "id": "PILOT-TASHKENT-CENTRAL-01",
-        "title": "Tashkent Central Corridor: Peak Bottleneck Mitigation",
-        "title_ru": "Центральный коридор Ташкента: Устранение заторов в часы пик",
+        "title": "Configured Demonstration Corridor: Signal Scenario Workspace",
+        "title_ru": "Настроенный демонстрационный коридор: рабочее пространство сценариев сигналов",
         "spatial_scope": get_default_spatial_scope(),
-        "problem_statement": "Persistent evening peak queue buildup across intersections cluster_1 to cluster_4 causing 25+ second average delays and excessive stop-and-go emissions.",
-        "problem_statement_ru": "Устойчивые заторы в вечерний пик на узлах cluster_1 – cluster_4 со средней задержкой более 25 с и повышенными выбросами от частых остановок.",
+        "problem_statement": "Draft workspace for collecting field observations and evaluating a future corridor signal pilot.",
+        "problem_statement_ru": "Черновое рабочее пространство для сбора натурных наблюдений и оценки будущего пилота по управлению сигналами на коридоре.",
         "objective": "Evaluate signal coordination strategies under BALANCED policy to minimize corridor delays and vehicle stops while maintaining pedestrian crossing safety.",
         "objective_ru": "Оценка стратегий координации светофоров по политике БАЛАНС для минимизации задержек и остановок при сохранении безопасности пешеходов.",
-        "status": "FIELD_VALIDATION",
+        "status": "DRAFT",
         "active_policy": "balanced",
-        "baseline_summary": {
-            "average_waiting_seconds": 24.8,
-            "average_travel_time_seconds": 118.5,
-            "average_speed_kmh": 22.1,
-            "stops_per_vehicle": 1.45,
-            "throughput_vehicles_per_hour": 1820.0,
-            "co2_kg": 18.2,
-        },
-        "scenarios_tested": ["midday", "evening_peak"],
-        "experiments": ["EXP-PILOT-2026-001"],
-        "decision_reports": ["REP-2026-TASHKENT-01"],
-        "recommended_option": {
-            "id": "green_wave_coordination_0s_signal_timing",
-            "label": "Green Wave Corridor Progression (40 km/h offset)",
-            "label_ru": "Зеленая волна по коридору (смещение фаз под 40 км/ч)",
-            "expected_delay_reduction_pct": 28.0,
-            "expected_co2_reduction_pct": 17.8,
-            "provenance": "SIMULATED",
-        },
-        "evidence_strength": "HIGH",
+        "baseline_summary": {},
+        "scenarios_tested": [],
+        "experiments": [],
+        "decision_reports": [],
+        "recommended_option": {},
+        "evidence_strength": "NOT_AVAILABLE",
         "calibration_status": "UNCALIBRATED",
         "next_action": {
             "action_code": "FIELD_DETECTOR_VALIDATION",
-            "title_en": "Deploy Temporary Radar/Camera Count Validation at cluster_1 and cluster_2",
-            "title_ru": "Установка временных детекторов/камер на узлах cluster_1 и cluster_2",
+            "title_en": "Plan verified temporary turning-count validation",
+            "title_ru": "Спланировать верифицированную временную проверку поворотных потоков",
             "description_en": "Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming.",
             "description_ru": "Проверка фактической интенсивности и динамики схода очередей перед перепрограммированием дорожных контроллеров.",
             "priority": "HIGH",
@@ -88,7 +74,7 @@ def create_pilot_case(payload: Dict[str, Any]) -> PilotCase:
         "experiments": payload.get("experiments") or [],
         "decision_reports": payload.get("decision_reports") or [],
         "recommended_option": payload.get("recommended_option") or {},
-        "evidence_strength": payload.get("evidence_strength") or "MODERATE",
+        "evidence_strength": payload.get("evidence_strength") or "NOT_AVAILABLE",
         "calibration_status": payload.get("calibration_status") or "UNCALIBRATED",
         "next_action": payload.get("next_action") or {
             "action_code": "FIELD_VALIDATION",

@@ -65,8 +65,10 @@ async def metrics(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     warmup_steps = int(body.get("warmup_steps", 0))
     measurement_steps = int(body.get("measurement_steps", steps))
     scenario = str(body.get("scenario", "midday"))
+    simulation_id = body.get("simulation_id")
+    seed = body.get("seed")
     try:
-        return await asyncio.to_thread(run_metrics_workflow, steps, warmup_steps, measurement_steps, scenario)
+        return await asyncio.to_thread(run_metrics_workflow, steps, warmup_steps, measurement_steps, scenario, None, simulation_id, seed)
     except Exception as exc:
         raise HTTPException(
             status_code=500,
@@ -127,7 +129,7 @@ async def optimize(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         record_analytics_event("policy_used", {"policy": policy})
         record_analytics_event("policy_selected", {"policy": policy})
         record_analytics_event("experiment_run", {"scenario": scenario, "duration_ms": 1250.0})
-        
+
         result["ai"] = explain_results(
             result.get("baseline", {}),
             result.get("candidates", []),
@@ -223,7 +225,7 @@ async def run_scenario(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     duration = int(body.get("duration", 300))
     if duration <= 0 or duration > 10000:
         raise HTTPException(status_code=400, detail="Invalid duration. Must be between 1 and 10000.")
-    
+
     multiplier = float(body.get("traffic_multiplier", 1.0))
     if multiplier <= 0.0 or multiplier > 10.0:
         raise HTTPException(status_code=400, detail="Invalid traffic multiplier. Must be between 0.1 and 10.0.")
@@ -392,7 +394,7 @@ async def export_report_csv_endpoint(payload: dict[str, Any] | None = None) -> d
     report = body.get("report")
     if not report:
         report = generate_decision_report(body)
-    
+
     csv_text = export_report_csv(report)
     record_analytics_event("report_exported", {"format": "csv", "report_id": report.get("report_id")})
     return {
@@ -435,18 +437,21 @@ async def get_canonical_experiment_endpoint() -> dict[str, Any]:
 @app.post("/api/experiments/canonical/run")
 async def run_canonical_experiment_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     """
-    Executes the Canonical Multi-Scenario Experiment across demand levels (0.8x, 1.0x, 1.2x),
-    multi-seed stochastic variance, and evaluates FLOW, ECO, and BALANCED from a shared evidence set.
+    Deliberately regenerate the locked canonical evidence and Case Study artifact.
+    This is an admin/developer operation, never a normal Case Study navigation path.
     """
-    from app.services.simulation.canonical import run_canonical_experiment, get_canonical_experiment_config
+    from app.services.case_studies.service import rerun_canonical_case_study_artifact
     from app.services.analytics.service import record_analytics_event
     body = payload or {}
+    if body.get("confirmation") != "REGENERATE_CANONICAL_ARTIFACT":
+        raise HTTPException(
+            status_code=403,
+            detail="Explicit confirmation REGENERATE_CANONICAL_ARTIFACT is required to rerun the canonical simulation.",
+        )
     language = str(body.get("language", "en"))
-    
-    cfg = get_canonical_experiment_config()
-    result = await asyncio.to_thread(run_canonical_experiment, cfg, language)
-    record_analytics_event("canonical_experiment_runs", {"experiment_id": result.get("experiment_id")})
-    return result
+    case_study = await asyncio.to_thread(rerun_canonical_case_study_artifact, language)
+    record_analytics_event("canonical_experiment_runs", {"experiment_id": case_study.get("experiment_id")})
+    return case_study
 
 
 # ── Case Studies endpoints ───────────────────────────────────────────────
@@ -455,7 +460,10 @@ async def run_canonical_experiment_endpoint(payload: dict[str, Any] | None = Non
 async def list_case_studies_endpoint(language: str = "en") -> list[dict[str, Any]]:
     """Returns all registered municipal case studies."""
     from app.services.case_studies.service import list_case_studies
-    return list_case_studies(language=language)
+    try:
+        return list_case_studies(language=language)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.get("/api/case-studies/canonical")
@@ -463,7 +471,10 @@ async def get_canonical_case_study_endpoint(language: str = "en") -> dict[str, A
     """Returns the primary Canonical Case Study for the Central Tashkent Corridor (UM-CS-2026-001)."""
     from app.services.case_studies.service import get_canonical_case_study
     from app.services.analytics.service import record_analytics_event
-    cs = get_canonical_case_study(language=language)
+    try:
+        cs = get_canonical_case_study(language=language)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     record_analytics_event("case_studies_generated", {"case_id": cs.get("case_id")})
     return cs
 
@@ -472,7 +483,10 @@ async def get_canonical_case_study_endpoint(language: str = "en") -> dict[str, A
 async def get_case_study_endpoint(case_id: str, language: str = "en") -> dict[str, Any]:
     """Retrieves a single case study by ID."""
     from app.services.case_studies.service import get_case_study
-    cs = get_case_study(case_id, language=language)
+    try:
+        cs = get_case_study(case_id, language=language)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     if not cs:
         raise HTTPException(status_code=404, detail=f"Case study '{case_id}' not found.")
     return cs
@@ -527,19 +541,61 @@ async def export_case_study_html_endpoint(payload: dict[str, Any] | None = None)
 
 # ── Calibration data, Field Import & Validation endpoints ────────────────
 
+@app.get("/api/mappings")
+async def list_mappings_endpoint() -> dict[str, Any]:
+    """Return only verified field-observation to SUMO movement mappings."""
+    from app.services.calibration.mappings import get_mapping_registry
+    registry = get_mapping_registry()
+    return {"mappings": registry.all(), "coverage": registry.coverage(), "provenance": "AUTHORITATIVE_MAPPING_REGISTRY"}
+
+
+@app.get("/api/mappings/{intersection_id}")
+async def mappings_for_intersection_endpoint(intersection_id: str) -> dict[str, Any]:
+    from app.services.calibration.mappings import get_mapping_registry
+    records = get_mapping_registry().by_intersection(intersection_id)
+    if not records:
+        raise HTTPException(status_code=404, detail=f"No verified movement mappings for intersection '{intersection_id}'.")
+    return {"intersection_id": intersection_id, "mappings": records, "provenance": "AUTHORITATIVE_MAPPING_REGISTRY"}
+
+
+@app.get("/api/mappings/{mapping_id}/audit")
+async def mapping_audit_endpoint(mapping_id: str) -> dict[str, Any]:
+    """Read-only candidate inspection; this endpoint never approves a mapping."""
+    from app.services.calibration.mappings import get_mapping_registry
+    from app.services.simulation.network_inspector import inspect_mapping_candidate
+    mapping = get_mapping_registry().by_id(mapping_id)
+    if not mapping:
+        raise HTTPException(status_code=404, detail=f"Mapping '{mapping_id}' not found.")
+    return inspect_mapping_candidate(mapping)
+
+
+@app.get("/api/simulation/movement-counts/{simulation_id}")
+async def movement_counts_endpoint(simulation_id: str) -> dict[str, Any]:
+    from app.services.simulation.movement_counter import get_movement_counts
+    counts = get_movement_counts(simulation_id)
+    if counts is None:
+        raise HTTPException(status_code=404, detail=f"No movement-count export exists for simulation '{simulation_id}'.")
+    return {"simulation_id": simulation_id, "counts": counts, "provenance": "SIMULATED"}
+
+
+@app.get("/api/calibration/template")
+async def calibration_template_endpoint() -> dict[str, Any]:
+    from app.services.calibration.mappings import get_observation_template
+    return get_observation_template()
+
 @app.get("/api/calibration/status")
 async def calibration_status_endpoint(scope_id: str = "central_corridor") -> dict[str, Any]:
     """Returns transparent calibration status and Model vs Reality data classification."""
     from app.services.calibration.service import get_calibration_status, get_model_vs_reality_breakdown
     from app.services.environment.provider import get_current_observation
-    
+
     calib = get_calibration_status(scope_id)
     try:
         env_obs = await asyncio.to_thread(get_current_observation)
         env_dict = env_obs.to_dict()
     except Exception:
         env_dict = {}
-    
+
     mvr = get_model_vs_reality_breakdown(env_data=env_dict)
     return {
         "calibration": calib,
@@ -565,6 +621,18 @@ async def calibration_import_endpoint(payload: dict[str, Any] | None = None) -> 
     return dataset
 
 
+@app.get("/api/calibration/datasets")
+async def calibration_datasets_endpoint() -> dict[str, Any]:
+    from app.services.calibration.service import list_field_observation_datasets
+    from app.services.calibration.mappings import get_mapping_registry
+    return {
+        "datasets": list_field_observation_datasets(),
+        "mapping_coverage": get_mapping_registry().coverage(),
+        "provenance": "IMPORTED_FIELD_OBSERVATION_METADATA",
+        "limitation": "Datasets are retained in memory for this MVP process only.",
+    }
+
+
 @app.post("/api/calibration/evaluate")
 async def calibration_evaluate_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     """
@@ -575,8 +643,15 @@ async def calibration_evaluate_endpoint(payload: dict[str, Any] | None = None) -
     from app.services.analytics.service import record_analytics_event
     body = payload or {}
     dataset_id = str(body.get("dataset_id", ""))
-    sim_counts = body.get("simulated_counts")
-    
+    if "simulated_counts" in body:
+        raise HTTPException(status_code=400, detail="simulated_counts cannot be supplied by an API caller. Use simulation_id from a completed SUMO run.")
+    simulation_id = str(body.get("simulation_id") or "")
+    from app.services.simulation.movement_counter import get_movement_counts
+    sim_counts = get_movement_counts(simulation_id) if simulation_id else None
+    if sim_counts is None:
+        raise HTTPException(status_code=409, detail="Comparable movement-level SUMO counts are unavailable for this simulation_id.")
+    sim_counts = {item["mapping_id"]: item for item in sim_counts}
+
     eval_res = evaluate_field_calibration(dataset_id, sim_counts)
     record_analytics_event("calibration_validations_run", {
         "dataset_id": dataset_id,
@@ -595,7 +670,7 @@ async def calibration_validate_endpoint(payload: dict[str, Any] | None = None) -
     simulated = body.get("simulated_series", [])
     metric_name = str(body.get("metric_name", "traffic_delay"))
     unit = str(body.get("unit", "s"))
-    
+
     return compute_validation_metrics(observed, simulated, metric_name, unit)
 
 
@@ -652,5 +727,3 @@ async def analytics_summary_endpoint() -> dict[str, Any]:
     """Returns product metrics tracking pilot validation activity."""
     from app.services.analytics.service import get_analytics_summary
     return get_analytics_summary()
-
-

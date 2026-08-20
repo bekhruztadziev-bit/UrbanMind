@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional, TypedDict
 
@@ -11,10 +11,11 @@ from app.services.spatial.models import SpatialScopeRef
 from app.services.simulation.models import SimulationMetrics, CandidateResult, TradeoffSummary
 from app.services.simulation.interventions import get_candidate_interventions
 from app.services.simulation.session import run_simulation, _scenario_signal_selection
-from app.services.simulation.metrics import calculate_metrics, estimate_candidate_metrics
+from app.services.simulation.metrics import calculate_metrics
 from app.services.simulation.optimizer import evaluate_candidates, rank_candidates, compute_policy_comparison
 from app.services.simulation.statistics import compute_sample_statistics, get_t_critical
 from app.services.calibration.service import get_calibration_status, get_model_vs_reality_breakdown
+from app.services.simulation.network_inspector import get_network_identity
 
 
 class CanonicalExperimentConfig(TypedDict, total=False):
@@ -87,22 +88,27 @@ def _compute_config_hash(raw_dict: Dict[str, Any]) -> str:
         "warmup_steps": raw_dict.get("warmup_steps"),
         "measurement_steps": raw_dict.get("measurement_steps"),
         "metric_schema_version": raw_dict.get("metric_schema_version"),
+        "candidate_interventions": raw_dict.get("candidate_interventions"),
+        "scenario_set": raw_dict.get("scenario_set"),
+        "spatial_scope": raw_dict.get("spatial_scope"),
+        "policy_comparison_methodology": raw_dict.get("policy_comparison_methodology"),
+        "seed_aggregation_method": raw_dict.get("seed_aggregation_method"),
     }
     raw = json.dumps(core, sort_keys=True)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def get_canonical_experiment_config(experiment_id: str = DEFAULT_CANONICAL_EXPERIMENT_ID) -> CanonicalExperimentConfig:
-    """Returns the immutable specification for the Central Tashkent Corridor canonical experiment."""
+    """Returns the immutable specification for the configured demonstration experiment."""
     signal_id, phase_index = _scenario_signal_selection()
     candidates = get_candidate_interventions(signal_id, phase_index)
     
     cfg: CanonicalExperimentConfig = {
         "experiment_id": experiment_id,
-        "title": "Central Tashkent Corridor Traffic Flow & Signal Optimization",
-        "title_ru": "Оптимизация транспортных потоков и светофорного регулирования Центрального коридора Ташкента",
+        "title": "Configured Demonstration Corridor Signal Optimization",
+        "title_ru": "Оптимизация сигналов в настроенном демонстрационном коридоре",
         "spatial_scope": get_default_spatial_scope(),
-        "network_version": "Tashkent-Central-Corridor-v1.2",
+        "network_version": get_network_identity()["network_version"],
         "scenario_set": ["off_peak", "nominal_peak", "heavy_peak"],
         "demand_multipliers": [0.8, 1.0, 1.2],
         "primary_analysis_scenario": "1.0x",
@@ -138,6 +144,26 @@ def get_canonical_experiment_config(experiment_id: str = DEFAULT_CANONICAL_EXPER
 
 
 _CANONICAL_EXPERIMENT_CACHE: Dict[str, CanonicalExperimentResult] = {}
+CANONICAL_ARTIFACT_PATH = Path(__file__).resolve().parents[3] / "data" / "canonical_experiment_artifact.json"
+
+
+def _aggregate_seed_metrics(seed_metrics: List[SimulationMetrics]) -> SimulationMetrics:
+    """Return mean numeric metrics while retaining shared run metadata.
+
+    This intentionally aggregates only actual TraCI/SUMO observations.  It
+    never manufactures seed-level variation or fills unavailable metrics.
+    """
+    if not seed_metrics:
+        raise ValueError("Cannot aggregate an empty seed evidence set.")
+    aggregate: SimulationMetrics = dict(seed_metrics[0])
+    keys = set().union(*(sample.keys() for sample in seed_metrics))
+    for key in keys:
+        values = [sample.get(key) for sample in seed_metrics]
+        numeric = [float(value) for value in values if isinstance(value, (int, float)) and not isinstance(value, bool)]
+        if numeric and len(numeric) == len(seed_metrics):
+            aggregate[key] = round(sum(numeric) / len(numeric), 4)  # type: ignore
+    aggregate["is_fallback"] = False
+    return aggregate
 
 
 def run_canonical_experiment(
@@ -154,7 +180,11 @@ def run_canonical_experiment(
     """
     cfg = config or get_canonical_experiment_config()
     exp_id = cfg.get("experiment_id", DEFAULT_CANONICAL_EXPERIMENT_ID)
-    cache_key = f"{exp_id}_{language}_{cfg.get('simulation_duration', 100)}"
+    computed_hash = _compute_config_hash(cfg)
+    if cfg.get("simulation_configuration_hash") != computed_hash:
+        cfg = dict(cfg)
+        cfg["simulation_configuration_hash"] = computed_hash
+    cache_key = f"{exp_id}_{language}_{computed_hash}"
     
     if not force_refresh and cache_key in _CANONICAL_EXPERIMENT_CACHE:
         return _CANONICAL_EXPERIMENT_CACHE[cache_key]
@@ -176,51 +206,40 @@ def run_canonical_experiment(
     for demand in demand_multipliers:
         demand_key = f"{demand:.1f}x"
         metric_samples_by_demand_and_candidate[demand_key] = {}
-        
-        # 1. Run Baseline simulation for this demand level (primary seed)
-        base_req = {
-            "steps": duration,
-            "warmup_steps": warmup,
-            "measurement_steps": measurement,
-            "scenario": "midday",
-            "traffic_multiplier": demand,
-            "seed": seeds[0],
-        }
-        base_raw = run_simulation(base_req)
-        base_rep = calculate_metrics(base_raw)
+        baseline_seed_metrics: List[SimulationMetrics] = []
+        for seed in seeds:
+            baseline_seed_metrics.append(calculate_metrics(run_simulation({
+                "steps": duration,
+                "warmup_steps": warmup,
+                "measurement_steps": measurement,
+                "scenario": "midday",
+                "traffic_multiplier": demand,
+                "seed": seed,
+            })))
+        base_rep = _aggregate_seed_metrics(baseline_seed_metrics)
         baseline_results[demand_key] = base_rep
-        
-        # 2. Run Candidate Interventions on this demand level
+
+        # Every candidate is executed for every seed.  Policy comparisons then
+        # re-rank the same aggregate evidence rather than rerunning SUMO.
         candidate_eval_tuples = []
-        
         for cand in candidates:
             cand_id = cand.get("id") or f"{cand.get('type')}_{cand.get('seconds', 0)}s_{cand.get('category', 'mobility')}"
+            seed_metrics: List[SimulationMetrics] = []
             metric_samples_by_demand_and_candidate[demand_key][cand_id] = []
-            
-            # Primary simulated candidate runs SUMO; other candidates estimate
-            if cand.get("evaluation_mode") == "SIMULATED" and cand.get("type") == "green_wave_coordination":
-                cand_req = {
+            for seed in seeds:
+                cand_metrics = calculate_metrics(run_simulation({
                     "steps": duration,
                     "warmup_steps": warmup,
                     "measurement_steps": measurement,
                     "scenario": "midday",
                     "traffic_multiplier": demand,
                     "intervention": cand,
-                    "seed": seeds[0],
-                }
-                raw_res = run_simulation(cand_req)
-                cand_m = calculate_metrics(raw_res)
-            else:
-                cand_m = estimate_candidate_metrics(base_rep, cand)
-            
-            cand_delay = float(cand_m.get("average_waiting_seconds", 0.0))
-            
-            # Stochastic variance modeling across seeds
-            for s_idx, seed in enumerate(seeds):
-                seed_factor = 1.0 + (math.sin(seed * 0.17 + s_idx) * 0.04)
-                seed_delay = round(cand_delay * seed_factor, 2)
-                metric_samples_by_demand_and_candidate[demand_key][cand_id].append(seed_delay)
-                
+                    "seed": seed,
+                }))
+                seed_metrics.append(cand_metrics)
+                metric_samples_by_demand_and_candidate[demand_key][cand_id].append(
+                    float(cand_metrics.get("average_waiting_seconds", 0.0))
+                )
                 candidate_results.append({
                     "condition_id": f"{exp_id}_{demand_key}_{cand_id}_seed{seed}",
                     "demand_multiplier": demand,
@@ -228,14 +247,13 @@ def run_canonical_experiment(
                     "candidate_label": cand.get("label", cand_id),
                     "candidate_label_ru": cand.get("label_ru", cand.get("label", cand_id)),
                     "seed": seed,
-                    "metrics": {**cand_m, "average_waiting_seconds": seed_delay},
-                    "evaluation_mode": cand.get("evaluation_mode", "HEURISTIC"),
-                    "provenance": "SIMULATED" if cand.get("evaluation_mode") == "SIMULATED" else "ESTIMATED",
+                    "metrics": cand_metrics,
+                    "evaluation_mode": "SIMULATED",
+                    "provenance": "SIMULATED",
                 })
-                
-            candidate_eval_tuples.append((cand, cand_m))
-            
-        # 3. Cross-Policy Comparison on this Shared Evidence Set
+            candidate_eval_tuples.append((cand, _aggregate_seed_metrics(seed_metrics)))
+
+        # Cross-policy comparison consumes this one common evidence set.
         cross_policy_map = compute_policy_comparison(
             base_rep,
             candidate_eval_tuples,
@@ -267,6 +285,18 @@ def run_canonical_experiment(
     calib_record = get_calibration_status(cfg.get("spatial_scope", {}).get("id", "central_corridor"))
     df_val = len(seeds) - 1
     t_crit_val = get_t_critical(df_val)
+    nominal_balanced = policy_results_by_demand.get("1.0x", {}).get("balanced", {})
+    nominal_winner = nominal_balanced.get("winner", {})
+    nominal_tradeoffs = nominal_winner.get("tradeoff_summary", {})
+    all_constraints_valid = all(
+        policy_results_by_demand[demand_key][policy_id].get("winner", {}).get("policy_breakdown", {}).get("is_valid", False)
+        for demand_key in policy_results_by_demand
+        for policy_id in ("flow", "eco", "balanced")
+    )
+    evidence_score = 25 if len(seeds) >= 3 else (10 if len(seeds) == 1 else 0)
+    evidence_score += 25 if len(demand_multipliers) >= 3 else 15
+    evidence_score += 15 if all_constraints_valid else 0
+    evidence_level = "MODERATE" if evidence_score >= 50 else "LOW"
 
     final_result: CanonicalExperimentResult = {
         "experiment_id": exp_id,
@@ -286,26 +316,22 @@ def run_canonical_experiment(
             "methodology_note_en": f"Evaluated across {len(seeds)} random seeds with exact Student-t 95% confidence intervals (df={df_val}, t={t_crit_val:.3f}).",
             "methodology_note_ru": f"Оценено по {len(seeds)} случайным сидам с точным доверительным интервалом Стьюдента 95% (df={df_val}, t={t_crit_val:.3f}).",
         },
-        "tradeoffs": {
-            "verdict_en": "Green Wave corridor progression reduces arterial delay by 24% with minimal side-street impact (<4%).",
-            "verdict_ru": "Зеленая волна снижает задержки на магистрали на 24% при минимальном влиянии на примыкания (<4%).",
-        },
+        "tradeoffs": nominal_tradeoffs,
         "evidence_strength": {
             "rubric_name": "UrbanMind Evidence Strength Score (Decision-Support Rubric)",
-            "level": "MODERATE",
-            "score": 75,
+            "level": evidence_level,
+            "score": evidence_score,
             "score_scale": "0-100",
             "criteria_breakdown": {
                 "seed_robustness": {"points": 25, "max": 35, "desc": f"{len(seeds)} stochastic seeds evaluated with Student-t CI"},
-                "scenario_diversity": {"points": 25, "max": 25, "desc": "3 demand levels tested (0.8x, 1.0x, 1.2x)"},
-                "ci_precision": {"points": 15, "max": 20, "desc": "Narrow 95% CI on primary corridor delays"},
-                "constraint_compliance": {"points": 10, "max": 15, "desc": "All policy constraint thresholds satisfied"},
+                "scenario_diversity": {"points": 25 if len(demand_multipliers) >= 3 else 15, "max": 25, "desc": f"{len(demand_multipliers)} demand levels evaluated"},
+                "constraint_compliance": {"points": 15 if all_constraints_valid else 0, "max": 15, "desc": "All evaluated policy constraints satisfied" if all_constraints_valid else "At least one evaluated policy constraint was violated"},
                 "calibration_availability": {"points": 0, "max": 5, "desc": "Traffic model UNCALIBRATED (field detector counts pending)"},
             },
-            "score_interpretation_note_en": "Internal decision-support rubric score (75/100), not a statistical confidence probability.",
-            "score_interpretation_note_ru": "Внутренняя экспертная оценка силы доказательств (75/100), не является вероятностью статистической достоверности.",
-            "explanation_en": "Multi-seed microscopic SUMO TraCI evidence with calibrated network geometry. Traffic model remains UNCALIBRATED until field turning counts are imported.",
-            "explanation_ru": "Микромоделирование SUMO TraCI по нескольким сидам с точной геометрией. Модель трафика остается НЕ ОТКАЛИБРОВАННОЙ до загрузки натурных детекторов.",
+            "score_interpretation_note_en": "Internal decision-support rubric, not a statistical confidence probability.",
+            "score_interpretation_note_ru": "Внутренняя экспертная оценка силы доказательств; не является вероятностью статистической достоверности.",
+            "explanation_en": "Multi-seed microscopic SUMO/TraCI evidence. Traffic demand remains UNCALIBRATED until field turning counts are imported and evaluated.",
+            "explanation_ru": "Микромоделирование SUMO/TraCI по нескольким сидам. Транспортный спрос остается НЕ ОТКАЛИБРОВАННЫМ до загрузки и оценки натурных подсчетов поворотных потоков.",
         },
         "calibration_status": calib_record,
         "limitations": {
@@ -325,3 +351,70 @@ def run_canonical_experiment(
     return final_result
 
 
+def write_canonical_experiment_artifact(
+    config: Optional[CanonicalExperimentConfig] = None,
+    language: str = "en",
+) -> CanonicalExperimentResult:
+    """Deliberately execute and persist an immutable conference artifact."""
+    result = run_canonical_experiment(config=config, language=language, force_refresh=True)
+    # The Case Study is persisted together with the evidence it reports.  It
+    # is intentionally constructed only here, after a deliberate SUMO run;
+    # ordinary UI/API reads never reconstruct it from a fresh simulation.
+    from app.services.case_studies.generator import generate_case_study
+    case_study = generate_case_study(
+        canonical_experiment=result,
+        case_id="UM-CS-2026-001",
+        language=language,
+    )
+    artifact = {
+        "artifact_type": "PRECOMPUTED_SIMULATION_ARTIFACT",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "configuration_hash": result["configuration"]["simulation_configuration_hash"],
+        "result_hash": hashlib.sha256(json.dumps(result, sort_keys=True, default=str).encode("utf-8")).hexdigest(),
+        "result": result,
+        "case_study": case_study,
+    }
+    CANONICAL_ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CANONICAL_ARTIFACT_PATH.write_text(json.dumps(artifact, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+    return result
+
+
+def load_canonical_experiment_artifact() -> Optional[CanonicalExperimentResult]:
+    """Load a locked artifact only when it matches the current canonical config."""
+    if not CANONICAL_ARTIFACT_PATH.exists():
+        return None
+    try:
+        artifact = json.loads(CANONICAL_ARTIFACT_PATH.read_text(encoding="utf-8"))
+        result = artifact.get("result")
+        if not isinstance(result, dict) or artifact.get("artifact_type") != "PRECOMPUTED_SIMULATION_ARTIFACT":
+            return None
+        expected = get_canonical_experiment_config().get("simulation_configuration_hash")
+        if artifact.get("configuration_hash") != expected:
+            return None
+        expected_result_hash = hashlib.sha256(json.dumps(result, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+        if artifact.get("result_hash") != expected_result_hash:
+            return None
+        return result
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def load_canonical_case_study_artifact() -> Optional[Dict[str, Any]]:
+    """Return the precomputed Case Study only when its evidence artifact verifies."""
+    # Reuse the evidence/configuration integrity checks above before exposing
+    # the stored presentation snapshot.
+    result = load_canonical_experiment_artifact()
+    if result is None:
+        return None
+    try:
+        artifact = json.loads(CANONICAL_ARTIFACT_PATH.read_text(encoding="utf-8"))
+        case_study = artifact.get("case_study")
+        if not isinstance(case_study, dict):
+            return None
+        if case_study.get("experiment_id") != result.get("experiment_id"):
+            return None
+        if case_study.get("artifact_type") not in (None, "PRECOMPUTED_SIMULATION_ARTIFACT"):
+            return None
+        return case_study
+    except (OSError, ValueError, TypeError):
+        return None

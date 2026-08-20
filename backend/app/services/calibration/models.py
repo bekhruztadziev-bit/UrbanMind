@@ -16,31 +16,40 @@ class FieldObservationRecord(TypedDict, total=False):
     dataset_id: str
     purpose: DatasetPurpose
     timestamp: str
+    measurement_window_id: str
     spatial_scope: SpatialScopeRef
     intersection_id: str
     approach_id: str
     movement: FieldMovement
+    mapping_id: str
     interval_minutes: int
     vehicle_count: int
-    vehicle_type: VehicleType
+    vehicle_class: VehicleType
     source: str
     quality: DataQuality
     notes: str
+    observation_content_hash: str
 
 
 class FieldObservationDataset(TypedDict, total=False):
     dataset_id: str
     name: str
     description: str
+    campaign_id: str
+    simulation_campaign_id: str
     purpose: DatasetPurpose
     uploaded_at: str
     spatial_scope: SpatialScopeRef
     observations: List[FieldObservationRecord]
     is_valid: bool
     validation_errors: List[str]
+    diagnostics: List[Dict[str, Any]]
+    mapping_coverage: Dict[str, Any]
     total_counts: int
     unique_intersections: List[str]
     time_window: str
+    dataset_content_hash: str
+    observation_content_hashes: List[str]
 
 
 class CalibrationDataset(TypedDict, total=False):
@@ -67,11 +76,12 @@ class ValidationMetrics(TypedDict, total=False):
     rmse: Optional[float]         # Root Mean Squared Error
     mape: Optional[float]         # Mean Absolute Percentage Error (%)
     bias: Optional[float]         # Mean Error (positive = overestimating, negative = underestimating)
+    mean_bias_error: Optional[float]
     correlation: Optional[float]  # Pearson correlation coefficient r [-1, 1]
     geh_mean: Optional[float]     # Mean GEH statistic
     geh_max: Optional[float]      # Max GEH statistic
     geh_pct_under_5: Optional[float] # % of links with GEH < 5.0
-    geh_pass: Optional[bool]      # UK WebTAG threshold (>= 85%)
+    geh_pass: Optional[bool]      # UrbanMind configured GEH acceptance criterion
     is_applicable: bool
     methodology_note: str
 

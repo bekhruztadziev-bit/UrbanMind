@@ -23,7 +23,7 @@ class PilotCase(TypedDict, total=False):
     experiments: List[str]
     decision_reports: List[str]
     recommended_option: Dict[str, Any]
-    evidence_strength: Literal["LOW", "MODERATE", "HIGH"]
+    evidence_strength: Literal["NOT_AVAILABLE", "LOW", "MODERATE", "HIGH"]
     calibration_status: Literal["UNCALIBRATED", "PARTIALLY_CALIBRATED", "CALIBRATED", "VALIDATED"]
     next_action: Dict[str, Any]
     target_stakeholder: str

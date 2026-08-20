@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,6 +23,7 @@ from app.services.reports.models import (
 )
 from app.services.simulation.metrics import METRIC_PROVENANCE
 from app.services.simulation.policies import get_policy, POLICIES, METRIC_DIRECTIONS
+from app.services.simulation.statistics import compute_sample_statistics
 from app.services.spatial.hierarchy import get_default_spatial_scope, get_cross_district_context
 
 
@@ -31,11 +31,11 @@ from app.services.spatial.hierarchy import get_default_spatial_scope, get_cross_
 METRIC_REGISTRY = [
     {
         "key": "average_waiting_seconds",
-        "name_en": "Average Delay",
-        "name_ru": "Средняя задержка",
+        "name_en": "Sampled accumulated waiting snapshot mean",
+        "name_ru": "Среднее накопленное ожидание по выборке снимков",
         "unit": "s",
         "direction": "minimize",
-        "provenance": "DIRECT",
+        "provenance": "SIMULATED",
     },
     {
         "key": "average_travel_time_seconds",
@@ -43,7 +43,7 @@ METRIC_REGISTRY = [
         "name_ru": "Время в пути",
         "unit": "s",
         "direction": "minimize",
-        "provenance": "DIRECT",
+        "provenance": "SIMULATED",
     },
     {
         "key": "stops_per_vehicle",
@@ -51,7 +51,7 @@ METRIC_REGISTRY = [
         "name_ru": "Остановок на авто",
         "unit": "stops",
         "direction": "minimize",
-        "provenance": "DIRECT",
+        "provenance": "SIMULATED",
     },
     {
         "key": "mean_queue_length_meters",
@@ -59,7 +59,7 @@ METRIC_REGISTRY = [
         "name_ru": "Длина очереди",
         "unit": "m",
         "direction": "minimize",
-        "provenance": "DIRECT",
+        "provenance": "SIMULATED",
     },
     {
         "key": "throughput_vehicles_per_hour",
@@ -67,7 +67,7 @@ METRIC_REGISTRY = [
         "name_ru": "Пропускная способность",
         "unit": "veh/h",
         "direction": "maximize",
-        "provenance": "DIRECT",
+        "provenance": "SIMULATED",
     },
     {
         "key": "average_speed_kmh",
@@ -75,10 +75,10 @@ METRIC_REGISTRY = [
         "name_ru": "Средняя скорость",
         "unit": "km/h",
         "direction": "maximize",
-        "provenance": "DIRECT",
+        "provenance": "SIMULATED",
     },
     {
-        "key": "co2_kg",
+        "key": "sumo_co2_kg",
         "name_en": "CO₂ Emissions",
         "name_ru": "Выбросы CO₂",
         "unit": "kg",
@@ -86,7 +86,7 @@ METRIC_REGISTRY = [
         "provenance": "SIMULATED",
     },
     {
-        "key": "nox_g",
+        "key": "sumo_nox_g",
         "name_en": "NOₓ Emissions",
         "name_ru": "Выбросы NOₓ",
         "unit": "g",
@@ -141,9 +141,11 @@ def _compute_evidence_status(
     elif sample_count >= 3:
         criteria["seed_count"] = {"status": "PASS", "points": 25, "desc": f"{sample_count} stochastic seeds evaluated"}
         score += 25
-    else:
+    elif sample_count == 1:
         criteria["seed_count"] = {"status": "PARTIAL", "points": 10, "desc": "Single seed run (limited stochastic variance)"}
         score += 10
+    else:
+        criteria["seed_count"] = {"status": "NOT_EVALUATED", "points": 0, "desc": "Multi-seed robustness was not evaluated"}
 
     # 2. Multi-demand scenario coverage (up to 25 pts)
     if is_multi_condition:
@@ -159,7 +161,9 @@ def _compute_evidence_status(
     std_val = float(delay_stat.get("std_dev", 0.0) or 0.0)
     rel_margin = (std_val / mean_val) if mean_val > 0 else 0.5
 
-    if rel_margin <= 0.15:
+    if sample_count < 2:
+        criteria["confidence_interval"] = {"status": "NOT_EVALUATED", "points": 0, "desc": "No multi-seed Student-t confidence interval is available"}
+    elif rel_margin <= 0.15:
         criteria["confidence_interval"] = {"status": "PASS", "points": 20, "desc": f"Narrow 95% CI (relative margin {rel_margin*100:.1f}%)"}
         score += 20
     elif rel_margin <= 0.30:
@@ -207,14 +211,14 @@ def _derive_next_action(
     intervention_id: str,
     intervention_label: str,
     evidence_level: str,
-    target_signal: str = "cluster_1"
+    target_signal: str = "configured_signal_group"
 ) -> NextActionRecord:
     """Derives a concrete, field-actionable next step for municipal transportation leadership."""
     if "green_wave" in intervention_id:
         return {
             "action_code": "FIELD_DETECTOR_VALIDATION",
-            "title_en": "Deploy Temporary Radar/Camera Count Validation at cluster_1 and cluster_2",
-            "title_ru": "Установка временных детекторов/камер на узлах cluster_1 и cluster_2",
+            "title_en": "Plan verified temporary turning-count validation",
+            "title_ru": "Спланировать верифицированную временную проверку поворотных потоков",
             "description_en": (
                 "Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming."
             ),
@@ -222,25 +226,25 @@ def _derive_next_action(
                 "Проверка фактической интенсивности и динамики схода очередей перед перепрограммированием дорожных контроллеров."
             ),
             "rationale_en": (
-                "Simulation indicates 28% delay reduction; field validation of side-street queues is required before municipal implementation."
+                "Field validation of movement counts and queues is required before any municipal implementation."
             ),
             "rationale_ru": (
-                "Симуляция показывает снижение задержек на 28%; требуется полевая проверка очередей на второстепенных улицах перед внедрением."
+                "Перед муниципальным внедрением требуется натурная проверка поворотных потоков и очередей."
             ),
             "priority": "HIGH",
-            "target_location": "Tashkent Central Corridor (Nodes cluster_1 & cluster_2)",
+            "target_location": "Configured demonstration network scope; field locations require verified mappings",
         }
     elif "pedestrian" in intervention_id:
         return {
             "action_code": "PEDESTRIAN_SAFETY_AUDIT",
             "title_en": "Conduct Peak Pedestrian Crossing Flow Audit",
             "title_ru": "Аудит пешеходных потоков в часы пик",
-            "description_en": "Measure school and market crossing compliance during morning peak hours.",
-            "description_ru": "Замер интенсивности пешеходов у школ и рынков в утренние часы пик.",
+            "description_en": "Measure pedestrian crossing activity only at field-verified locations.",
+            "description_ru": "Измерять пешеходную активность только в натурно верифицированных точках.",
             "rationale_en": "Ensure safety priority does not cause unexpected vehicle gridlock on connecting links.",
             "rationale_ru": "Гарантировать, что приоритет пешеходов не создает заторов на прилегающих связях.",
             "priority": "MEDIUM",
-            "target_location": "School & Market Crossings (cluster_2 & cluster_4)",
+            "target_location": "Field-verified crossing locations required",
         }
     else:
         return {
@@ -268,9 +272,17 @@ def _build_metric_comparison(
         direction = defn["direction"]
         provenance = defn["provenance"]
 
-        # Support fallback keys for CO2 / NOx if needed
-        base_val = float(baseline.get(key) if baseline.get(key) is not None else (baseline.get(f"sumo_{key}") or 0.0))
-        opt_val = float(optimized.get(key) if optimized.get(key) is not None else (optimized.get(f"sumo_{key}") or base_val))
+        # Legacy formula emissions may appear in historical payloads.  Prefer the
+        # actual TraCI emission outputs used by the optimizer whenever available.
+        legacy_key = key.removeprefix("sumo_")
+        base_raw = baseline.get(key)
+        opt_raw = optimized.get(key)
+        if base_raw is None and key.startswith("sumo_"):
+            base_raw = baseline.get(legacy_key)
+        if opt_raw is None and key.startswith("sumo_"):
+            opt_raw = optimized.get(legacy_key)
+        base_val = float(base_raw or 0.0)
+        opt_val = float(base_val if opt_raw is None else opt_raw)
 
         abs_diff = round(opt_val - base_val, 3)
         pct_diff = round((abs_diff / base_val * 100), 2) if base_val != 0 else 0.0
@@ -305,16 +317,16 @@ def _build_methodology_record(
 ) -> MethodologyRecord:
     """Builds transparent technical methodology metadata."""
     return {
-        "network_name": "Tashkent Central Corridor OSM Network (6 signalized nodes)",
+        "network_name": "Configured SUMO demonstration network (network hash recorded in evidence)",
         "simulation_engine": "SUMO (Simulation of Urban MObility) 1.27+ / TraCI Microscopic Physics",
-        "emission_model": "SUMO HBEFA 4.2 Emission Modeling (Passenger & Transit Curves)",
+        "emission_model": "SUMO TraCI per-vehicle emission outputs (configured emission class to be documented)",
         "duration_steps": duration,
         "warmup_steps": warmup_steps,
         "measurement_steps": max(1, duration - warmup_steps),
-        "demand_scenario": f"Tashkent {scenario.capitalize()} Profile",
+        "demand_scenario": f"Configured {scenario.capitalize()} demand profile",
         "policy_framework": f"Multi-Objective {policy_name} Policy Optimization",
         "optimization_method": "Deterministic candidate ranking with baseline-relative percentage normalization",
-        "statistical_method": "Multi-seed stochastic variance estimation with 95% confidence intervals",
+        "statistical_method": "Student-t confidence intervals when two or more simulation seeds are available",
     }
 
 
@@ -322,14 +334,14 @@ def _build_limitations_record() -> LimitationsRecord:
     """Builds explicit municipal limitations and data class distinctions."""
     return {
         "modeled_caveats_en": [
-            "Simulation physics reflect synthetic driver behavior models calibrated to Tashkent Central Corridor geometry.",
-            "Signal cycle offsets assume ideal controller response without communications latency.",
-            "Vehicle emissions are estimated via microscopic speed-acceleration profiles (HBEFA) rather than tailpipe monitors.",
+            "Demand and driver behavior remain uncalibrated against field turning counts.",
+            "Signal-control changes are SUMO/TraCI experiments, not verified field controller deployments.",
+            "Vehicle emissions are modeled from SUMO per-vehicle emission outputs rather than tailpipe monitors; the configured emission class is not yet documented.",
         ],
         "modeled_caveats_ru": [
-            "Физика симуляции отражает модели поведения водителей, откалиброванные под геометрию коридора Ташкента.",
-            "Сдвиги фаз светофоров предполагают идеальный отклик контроллеров без задержек связи.",
-            "Выбросы ТС оцениваются по профилям скорости и ускорений (HBEFA), а не прямыми датчиками выхлопа.",
+            "Спрос и поведение водителей не откалиброваны по натурным подсчетам поворотных потоков.",
+            "Изменения управления сигналами являются экспериментами SUMO/TraCI, а не проверенным внедрением на контроллерах.",
+            "Выбросы ТС моделируются по данным SUMO для каждого автомобиля, а не прямыми датчиками выхлопа; настроенный класс выбросов еще не документирован.",
         ],
         "observed_data_caveats_en": [
             "Stationary environmental telemetry is sourced from Uzhydromet / WAQI regional monitoring stations.",
@@ -347,10 +359,10 @@ def _build_limitations_record() -> LimitationsRecord:
         ],
         "data_classes_summary": {
             "DIRECT": "Direct microscopic TraCI state observation (speeds, stops, waiting times)",
-            "SIMULATED": "Microscopic domain model calculations (HBEFA CO2, NOx emissions)",
+            "SIMULATED": "Microscopic SUMO/TraCI model outputs (CO2, NOx emissions)",
             "OBSERVED": "Real-world physical monitoring telemetry (Uzhydromet air quality stations)",
             "ESTIMATED": "Multi-objective urban formulas & heuristic estimates",
-            "FALLBACK": "Deterministic calibrated contingency data",
+            "FALLBACK": "Not accepted in the authoritative SUMO evidence pipeline",
         },
     }
 
@@ -425,27 +437,18 @@ def _normalize_experiment_result(
         "tradeoff_summary": {"improved": [], "worsened": [], "unchanged": []},
     }
 
-    # Calculate robustness across completed conditions
+    # Calculate robustness across completed conditions with the single shared
+    # Student-t utility. These are condition samples, not claimed seed samples.
     robustness_stats = {}
     for defn in METRIC_REGISTRY:
         k = defn["key"]
         vals = [float(c.get("scenario_metrics", {}).get(k, 0)) for c in completed if c.get("scenario_metrics", {}).get(k) is not None]
         if vals:
-            mean_v = sum(vals) / len(vals)
-            variance = sum((x - mean_v) ** 2 for x in vals) / len(vals) if len(vals) > 1 else 0.0
-            std_v = math.sqrt(variance)
-            margin = 1.96 * (std_v / math.sqrt(len(vals))) if len(vals) > 1 else 0.0
-            robustness_stats[k] = {
-                "mean": round(mean_v, 2),
-                "std_dev": round(std_v, 2),
-                "ci_95_low": round(mean_v - margin, 2),
-                "ci_95_high": round(mean_v + margin, 2),
-                "min": round(min(vals), 2),
-                "max": round(max(vals), 2),
-            }
+            robustness_stats[k] = compute_sample_statistics(vals, allow_negative_ci=True)
 
-    best_candidate["robustness_sample_count"] = max(1, len(completed))
-    best_candidate["robustness_seeds"] = [42, 101, 2024]
+    best_candidate["robustness_sample_count"] = len(completed)
+    best_candidate["robustness_seeds"] = []
+    best_candidate["robustness_state"] = "NOT_EVALUATED"
     best_candidate["robustness_stats"] = robustness_stats
 
     return {
@@ -500,8 +503,10 @@ def generate_decision_report(
 
     # 2. Robustness Evidence & Evidence Status Computation
     raw_stats = best_cand.get("robustness_stats") or {}
-    sample_count = best_cand.get("robustness_sample_count", 3)
-    seeds = best_cand.get("robustness_seeds", [42, 101, 2024])
+    raw_seeds = best_cand.get("robustness_seeds")
+    seeds = list(raw_seeds) if isinstance(raw_seeds, list) else []
+    sample_count = len(seeds)
+    robustness_state = "MULTI_SEED" if sample_count > 1 else ("SINGLE_RUN" if sample_count == 1 else "NOT_EVALUATED")
     is_valid = pb.get("is_valid", True)
     violations_en = pb.get("constraint_violations_en", [])
     violations_ru = pb.get("constraint_violations_ru", [])
@@ -518,7 +523,7 @@ def generate_decision_report(
         intervention_id=best_cand.get("id", ""),
         intervention_label=interv_label,
         evidence_level=evidence_status["level"],
-        target_signal=(best_cand.get("intervention") or {}).get("traffic_light_id", "cluster_1")
+        target_signal=(best_cand.get("intervention") or {}).get("traffic_light_id", "configured_signal_group")
     )
 
     # 4. Calibration Status & Model vs Reality Classification
@@ -526,12 +531,12 @@ def generate_decision_report(
     model_vs_reality = get_model_vs_reality_breakdown(baseline, best_metrics)
 
     # 5. Executive Summary Figures
-    base_wait = float(baseline.get("average_waiting_seconds", 24.0) or 24.0)
+    base_wait = float(baseline.get("average_waiting_seconds") or 0.0)
     opt_wait = float(best_metrics.get("average_waiting_seconds", base_wait) or base_wait)
     wait_reduction_pct = round(((base_wait - opt_wait) / base_wait * 100), 1) if base_wait > 0 else 0.0
 
-    base_co2 = float(baseline.get("co2_kg") or baseline.get("sumo_co2_kg") or 18.0)
-    opt_co2 = float(best_metrics.get("co2_kg") or best_metrics.get("sumo_co2_kg") or base_co2)
+    base_co2 = float(baseline.get("sumo_co2_kg") or baseline.get("co2_kg") or 0.0)
+    opt_co2 = float(best_metrics.get("sumo_co2_kg") or best_metrics.get("co2_kg") or 0.0)
     co2_reduction_pct = round(((base_co2 - opt_co2) / base_co2 * 100), 1) if base_co2 > 0 else 0.0
 
     tradeoff_worsened = tradeoff_summary.get("worsened", [])
@@ -544,8 +549,8 @@ def generate_decision_report(
         if tradeoff_worsened else "Значимых негативных компромиссов по коридору не выявлено."
     )
 
-    primary_res_en = f"Average corridor delay reduced by {wait_reduction_pct}%"
-    primary_res_ru = f"Сокращение средней задержки по коридору на {wait_reduction_pct}%"
+    primary_res_en = f"Sampled accumulated waiting snapshot mean reduced by {wait_reduction_pct}%"
+    primary_res_ru = f"Сокращение среднего накопленного ожидания по выборке снимков на {wait_reduction_pct}%"
 
     env_res_en = f"Simulated CO₂ emissions reduced by {co2_reduction_pct}%"
     env_res_ru = f"Сокращение расчетных выбросов CO₂ на {co2_reduction_pct}%"
@@ -623,9 +628,18 @@ def generate_decision_report(
         "sample_count": sample_count,
         "seeds": seeds,
         "stats": raw_stats,
-        "is_statistically_significant": True if evidence_status["level"] == "HIGH" else False,
-        "methodology_note_en": f"Evaluated across {sample_count} stochastic simulation seeds with 95% Student-t confidence intervals.",
-        "methodology_note_ru": f"Оценка проведена по {sample_count} стохастическим симуляционным сидам с 95% доверительными интервалами.",
+        "state": robustness_state,
+        "is_statistically_significant": bool(robustness_state == "MULTI_SEED" and evidence_status["level"] == "HIGH"),
+        "methodology_note_en": (
+            f"Evaluated across {sample_count} executed stochastic simulation seeds with Student-t confidence intervals."
+            if robustness_state == "MULTI_SEED" else
+            ("Single executed simulation run; no inferential Student-t confidence interval." if robustness_state == "SINGLE_RUN" else "Multi-seed robustness: Not evaluated.")
+        ),
+        "methodology_note_ru": (
+            f"Оценка проведена по {sample_count} выполненным стохастическим сидам с доверительными интервалами Стьюдента."
+            if robustness_state == "MULTI_SEED" else
+            ("Выполнен один прогон; выводной доверительный интервал Стьюдента не рассчитывается." if robustness_state == "SINGLE_RUN" else "Многосидовая устойчивость: не оценена.")
+        ),
     }
 
     # 9. Methodology & Limitations
@@ -691,4 +705,3 @@ def generate_decision_report(
         "municipal_disclaimer_en": disclaimer_en,
         "municipal_disclaimer_ru": disclaimer_ru,
     }
-

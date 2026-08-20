@@ -47,6 +47,7 @@ class SimulationRequest(TypedDict, total=False):
 
 
 class RawSimulationResult(TypedDict, total=False):
+    simulation_id: str
     steps: int
     warmup_steps: int
     measurement_steps: int
@@ -84,6 +85,7 @@ class RawSimulationResult(TypedDict, total=False):
 
 
 class SimulationMetrics(TypedDict, total=False):
+    simulation_id: str
     steps: int
     warmup_steps: int
     measurement_steps: int
@@ -115,12 +117,13 @@ class SimulationMetrics(TypedDict, total=False):
     accessibility_score: float
     departure_based_vehicle_delay: Optional[float]
     # SUMO emission model outputs (SIMULATED provenance)
-    sumo_co2_kg: float          # SIMULATED — from SUMO HBEFA emission model
-    sumo_nox_g: float           # SIMULATED — from SUMO HBEFA emission model
-    sumo_pmx_mg: float          # SIMULATED — from SUMO HBEFA emission model
-    sumo_fuel_ml: float         # SIMULATED — from SUMO HBEFA emission model
+    sumo_co2_kg: float          # SIMULATED — from configured SUMO/TraCI emission model
+    sumo_nox_g: float           # SIMULATED — from configured SUMO/TraCI emission model
+    sumo_pmx_mg: float          # SIMULATED — from configured SUMO/TraCI emission model
+    sumo_fuel_ml: float         # SIMULATED — from configured SUMO/TraCI emission model
     is_fallback: bool
     seed: Optional[int]
+    movement_counts: List[Dict[str, Any]]
     structured_metrics: Optional[Dict[str, MetricValue]]
 
 

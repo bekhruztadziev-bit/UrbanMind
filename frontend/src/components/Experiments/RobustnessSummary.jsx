@@ -3,7 +3,7 @@ import { safeNumber, INTERVENTION_LABELS_RU } from '../../utils/normalize'
 
 // Robustness criterion: "effective" = waiting time delta < 0 (intervention reduces waiting vs control)
 // This criterion is documented here and displayed in the UI.
-const EFFECTIVE_CRITERION_LABEL = 'Effective = average observed waiting time reduced vs same-demand control'
+const EFFECTIVE_CRITERION_LABEL = 'Effective = modeled sampled waiting metric reduced vs same-demand control'
 
 const EVAL_BADGE = {
   SIMULATED: { label: 'SUMO', color: '#38bdf8', bg: 'rgba(56,189,248,0.16)' },

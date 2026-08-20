@@ -63,19 +63,19 @@ export function RecommendationPanel({ t = {}, selectedCandidate, optResult, lang
   const activePolicyDef = optResult?.policy_definition
 
   // Safe Comparison metrics
-  const baseWait = safeNumber(baseline?.mean_completed_vehicle_waiting_seconds ?? baseline?.average_waiting_seconds, 21.1)
+  const baseWait = safeNumber(baseline?.mean_completed_vehicle_waiting_seconds ?? baseline?.average_waiting_seconds, 0)
   const optWait = safeNumber(candMetrics?.mean_completed_vehicle_waiting_seconds ?? candMetrics?.average_waiting_seconds, baseWait)
   const rawWaitImp = safeNumber(delta?.delay_improvement_pct, baseWait > 0 ? ((baseWait - optWait) / baseWait * 100) : 0)
 
-  const baseTT = safeNumber(baseline?.average_travel_time_seconds, 58.4)
+  const baseTT = safeNumber(baseline?.average_travel_time_seconds, 0)
   const optTT = safeNumber(candMetrics?.average_travel_time_seconds, baseTT)
   const rawTTImp = safeNumber(delta?.travel_time_improvement_pct, baseTT > 0 ? ((baseTT - optTT) / baseTT * 100) : 0)
 
-  const baseQueue = safeNumber(baseline?.mean_queue_length_meters, 38.2)
+  const baseQueue = safeNumber(baseline?.mean_queue_length_meters, 0)
   const optQueue = safeNumber(candMetrics?.mean_queue_length_meters, baseQueue)
   const rawQueueImp = safeNumber(delta?.queue_improvement_pct, baseQueue > 0 ? ((baseQueue - optQueue) / baseQueue * 100) : 0)
 
-  const baseStops = safeNumber(baseline?.stops_per_vehicle, 1.42)
+  const baseStops = safeNumber(baseline?.stops_per_vehicle, 0)
   const optStops = safeNumber(candMetrics?.stops_per_vehicle, baseStops)
   const rawStopsImp = safeNumber(delta?.stops_improvement_pct, baseStops > 0 ? ((baseStops - optStops) / baseStops * 100) : 0)
 
@@ -84,8 +84,8 @@ export function RecommendationPanel({ t = {}, selectedCandidate, optResult, lang
   const rawTPImp = safeNumber(delta?.throughput_improvement_pct, baseTP > 0 ? ((optTP - baseTP) / baseTP * 100) : 0)
 
   // CO2: ensure mathematical consistency
-  const baseCO2 = safeNumber(baseline?.co2_kg > 0 ? baseline.co2_kg : (baseline?.sumo_co2_kg > 0 ? baseline.sumo_co2_kg : 17.9), 17.9)
-  const rawCO2Imp = safeNumber(delta?.emissions_improvement_pct, 10.3)
+  const baseCO2 = safeNumber(baseline?.sumo_co2_kg > 0 ? baseline.sumo_co2_kg : baseline?.co2_kg, 0)
+  const rawCO2Imp = safeNumber(delta?.emissions_improvement_pct, 0)
   const expectedOptCO2 = baseCO2 > 0 ? Number((baseCO2 * (1 - rawCO2Imp / 100)).toFixed(1)) : baseCO2
   const candCO2Val = safeNumber(candMetrics?.co2_kg > 0 ? candMetrics.co2_kg : (candMetrics?.sumo_co2_kg > 0 ? candMetrics.sumo_co2_kg : 0), 0)
   const optCO2 = candCO2Val > 0 && Math.abs(candCO2Val - baseCO2) > 0.05 ? candCO2Val : expectedOptCO2

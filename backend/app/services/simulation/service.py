@@ -1,12 +1,12 @@
 from typing import Optional, Any
 from app.services.simulation.models import SimulationRequest, SimulationMetrics, OptimizationResult
 from app.services.simulation.session import run_simulation, _scenario_signal_selection
-from app.services.simulation.metrics import calculate_metrics, estimate_candidate_metrics
+from app.services.simulation.metrics import calculate_metrics
 from app.services.simulation.interventions import get_candidate_interventions
 from app.services.simulation.optimizer import evaluate_candidates, rank_candidates, compute_policy_comparison
 
 
-def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", intervention: Optional[dict[str, Any]] = None) -> SimulationMetrics:
+def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", intervention: Optional[dict[str, Any]] = None, simulation_id: Optional[str] = None, seed: Optional[int] = None) -> SimulationMetrics:
     """Orchestrates a single simulation run and metric calculation."""
     request: SimulationRequest = {
         "steps": steps,
@@ -14,6 +14,8 @@ def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_st
         "measurement_steps": measurement_steps or steps,
         "scenario": scenario,
         "intervention": intervention,
+        "simulation_id": simulation_id,
+        "seed": seed,
     }
     raw_result = run_simulation(request)
     metrics = calculate_metrics(raw_result)
@@ -47,10 +49,7 @@ def run_optimization_workflow(
     # 3. Evaluate Candidates to produce Common Evidence Set
     candidate_results_tuples = []
     for candidate in candidates:
-        if candidate.get("evaluation_mode") == "SIMULATED":
-            metrics = run_metrics_workflow(steps, warmup_steps, measurement_steps, scenario, candidate)
-        else:
-            metrics = estimate_candidate_metrics(baseline_metrics, candidate)
+        metrics = run_metrics_workflow(steps, warmup_steps, measurement_steps, scenario, candidate)
         candidate_results_tuples.append((candidate, metrics))
         
     # 4. Assemble and Rank under selected policy
@@ -149,14 +148,11 @@ def run_scenario_workflow(request: dict[str, Any]) -> dict[str, Any]:
         "warmup_steps": warmup_steps,
         "measurement_steps": measurement_steps,
         "scenario": scenario,
-        "intervention": intervention_def if intervention_def and intervention_def.get("evaluation_mode") == "SIMULATED" else None,
+        "intervention": intervention_def,
         "traffic_multiplier": traffic_multiplier,
     }
     scenario_raw = run_simulation(scenario_request)
     scenario_metrics = calculate_metrics(scenario_raw)
-
-    if intervention_def and intervention_def.get("evaluation_mode") == "HEURISTIC":
-        scenario_metrics = estimate_candidate_metrics(scenario_metrics, intervention_def)
 
     # 5. Deltas (Control vs Scenario)
     from app.services.simulation.metrics import METRIC_PROVENANCE

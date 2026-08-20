@@ -106,8 +106,8 @@ FLOW_POLICY = PolicyDefinition(
         "average_speed_kmh": 0.05,
     },
     environment_metric_weights={
-        "co2_kg": 0.60,
-        "nox_g": 0.40,
+        "sumo_co2_kg": 0.60,
+        "sumo_nox_g": 0.40,
     },
     accessibility_metric_weights={
         "pedestrian_delay_seconds": 0.60,
@@ -115,7 +115,7 @@ FLOW_POLICY = PolicyDefinition(
     },
     constraints=[
         PolicyConstraint(
-            metric="co2_kg",
+            metric="sumo_co2_kg",
             max_allowed_worsening_pct=25.0,
             description_en="Emissions must not increase by more than 25%",
             description_ru="Выбросы CO₂ не должны увеличиваться более чем на 25%",
@@ -133,8 +133,8 @@ ECO_POLICY = PolicyDefinition(
     objective_question="Which candidate best reduces modeled transportation environmental impact?",
     objective_question_ru="Какой вариант лучше всего снижает расчетное экологическое воздействие транспорта?",
     primary_dimensions=[
-        "co2_kg",
-        "nox_g",
+        "sumo_co2_kg",
+        "sumo_nox_g",
         "noise_db",
         "stops_per_vehicle",
         "average_waiting_seconds",
@@ -155,8 +155,8 @@ ECO_POLICY = PolicyDefinition(
         "average_speed_kmh": 0.05,
     },
     environment_metric_weights={
-        "co2_kg": 0.50,
-        "nox_g": 0.35,
+        "sumo_co2_kg": 0.50,
+        "sumo_nox_g": 0.35,
         "noise_db": 0.15,
     },
     accessibility_metric_weights={
@@ -185,8 +185,8 @@ BALANCED_POLICY = PolicyDefinition(
     primary_dimensions=[
         "average_waiting_seconds",
         "average_travel_time_seconds",
-        "co2_kg",
-        "nox_g",
+        "sumo_co2_kg",
+        "sumo_nox_g",
         "pedestrian_delay_seconds",
         "accessibility_score",
     ],
@@ -205,8 +205,8 @@ BALANCED_POLICY = PolicyDefinition(
         "throughput_vehicles_per_hour": 0.10,
     },
     environment_metric_weights={
-        "co2_kg": 0.55,
-        "nox_g": 0.35,
+        "sumo_co2_kg": 0.55,
+        "sumo_nox_g": 0.35,
         "noise_db": 0.10,
     },
     accessibility_metric_weights={
@@ -221,7 +221,7 @@ BALANCED_POLICY = PolicyDefinition(
             description_ru="Задержка не должна увеличиваться более чем на 20%",
         ),
         PolicyConstraint(
-            metric="co2_kg",
+            metric="sumo_co2_kg",
             max_allowed_worsening_pct=20.0,
             description_en="Emissions must not increase by more than 20%",
             description_ru="Выбросы не должны увеличиваться более чем на 20%",
@@ -240,7 +240,7 @@ CUSTOM_POLICY_TEMPLATE = PolicyDefinition(
     objective_question_ru="Какой вариант лучше всего отвечает заданным муниципальным весам целей?",
     primary_dimensions=[
         "average_waiting_seconds",
-        "co2_kg",
+        "sumo_co2_kg",
         "accessibility_score",
     ],
     why_won_template="Optimized to custom municipal objective weighting across mobility, environment, and accessibility.",
@@ -258,8 +258,8 @@ CUSTOM_POLICY_TEMPLATE = PolicyDefinition(
         "throughput_vehicles_per_hour": 0.10,
     },
     environment_metric_weights={
-        "co2_kg": 0.60,
-        "nox_g": 0.40,
+        "sumo_co2_kg": 0.60,
+        "sumo_nox_g": 0.40,
     },
     accessibility_metric_weights={
         "pedestrian_delay_seconds": 0.50,
@@ -541,4 +541,3 @@ def generate_why_this_won_explanation(
             f"BALANCED Winner (Score {overall:+.1f}%): Provides the strongest multi-objective compromise across "
             f"mobility ({mob_score:+.1f}%), modeled emissions ({env_score:+.1f}%), and pedestrian accessibility ({acc_score:+.1f}%)."
         )
-

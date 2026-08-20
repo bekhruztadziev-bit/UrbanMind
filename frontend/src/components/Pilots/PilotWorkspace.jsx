@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { fetchPilotCases, fetchPilotCase, updatePilotCase, fetchCalibrationStatus } from '../../api/client'
+import { useState, useEffect } from 'react'
+import { fetchPilotCases, updatePilotCase } from '../../api/client'
 
 const DEFAULT_PILOT_CASE = {
 
@@ -11,37 +11,23 @@ const DEFAULT_PILOT_CASE = {
     name: 'Tashkent Central Corridor',
     name_ru: 'Центральный коридор Ташкента',
   },
-  problem_statement: 'Persistent evening peak queue buildup across intersections cluster_1 to cluster_4 causing 25+ second average delays and excessive stop-and-go emissions.',
-  problem_statement_ru: 'Устойчивые заторы в вечерний пик на узлах cluster_1 – cluster_4 со средней задержкой более 25 с и повышенными выбросами от частых остановок.',
+  problem_statement: 'Draft workspace for collecting field observations and evaluating a future corridor signal pilot.',
+  problem_statement_ru: 'Черновое рабочее пространство для сбора натурных наблюдений и оценки будущего пилота по управлению сигналами на коридоре.',
   objective: 'Evaluate signal coordination strategies under BALANCED policy to minimize corridor delays and vehicle stops while maintaining pedestrian crossing safety.',
   objective_ru: 'Оценка стратегий координации светофоров по политике БАЛАНС для минимизации задержек и остановок при сохранении безопасности пешеходов.',
-  status: 'FIELD_VALIDATION',
+  status: 'DRAFT',
   active_policy: 'balanced',
-  baseline_summary: {
-    average_waiting_seconds: 24.8,
-    average_travel_time_seconds: 118.5,
-    average_speed_kmh: 22.1,
-    stops_per_vehicle: 1.45,
-    throughput_vehicles_per_hour: 1820.0,
-    co2_kg: 18.2,
-  },
-  scenarios_tested: ['midday', 'evening_peak'],
-  experiments: ['UM-EXP-2026-001'],
-  decision_reports: ['UM-REP-2026-001'],
-  recommended_option: {
-    id: 'green_wave_coordination_0s_signal_timing',
-    label: 'Green Wave Corridor Progression (40 km/h offset)',
-    label_ru: 'Зеленая волна по коридору (смещение фаз под 40 км/ч)',
-    expected_delay_reduction_pct: 28.0,
-    expected_co2_reduction_pct: 17.8,
-    provenance: 'SIMULATED',
-  },
-  evidence_strength: 'HIGH',
+  baseline_summary: {},
+  scenarios_tested: [],
+  experiments: [],
+  decision_reports: [],
+  recommended_option: {},
+  evidence_strength: 'NOT_AVAILABLE',
   calibration_status: 'UNCALIBRATED',
   next_action: {
     action_code: 'FIELD_DETECTOR_VALIDATION',
-    title_en: 'Deploy Temporary Radar/Camera Count Validation at cluster_1 and cluster_2',
-    title_ru: 'Установка временных детекторов/камер на узлах cluster_1 и cluster_2',
+    title_en: 'Plan verified temporary turning-count validation',
+    title_ru: 'Спланировать верифицированную временную проверку поворотных потоков',
     description_en: 'Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming.',
     description_ru: 'Проверка фактической интенсивности и динамики схода очередей перед перепрограммированием дорожных контроллеров.',
     priority: 'HIGH',
@@ -58,31 +44,25 @@ export function PilotWorkspace({
   onOpenCaseStudy,
 }) {
   const isRu = language === 'ru'
-  const [pilotCases, setPilotCases] = useState([DEFAULT_PILOT_CASE])
   const [selectedPilot, setSelectedPilot] = useState(DEFAULT_PILOT_CASE)
-  const [calibrationData, setCalibrationData] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [activeMechanism, setActiveMechanism] = useState('mechanism3')
 
   useEffect(() => {
     async function loadData() {
+      setIsLoading(true)
       try {
-        const [pilots, calib] = await Promise.all([
-          fetchPilotCases().catch(() => []),
-          fetchCalibrationStatus().catch(() => null),
-        ])
+        const pilots = await fetchPilotCases()
         if (pilots && pilots.length > 0) {
-          setPilotCases(pilots)
           setSelectedPilot(pilots[0])
         } else {
-          setPilotCases([DEFAULT_PILOT_CASE])
           setSelectedPilot(DEFAULT_PILOT_CASE)
         }
-        setCalibrationData(calib)
       } catch (err) {
-        console.error('Failed to load pilot cases, using default fallback:', err)
-        setPilotCases([DEFAULT_PILOT_CASE])
+        console.error('Failed to load pilot cases; showing an empty draft workspace:', err)
         setSelectedPilot(DEFAULT_PILOT_CASE)
+      } finally {
+        setIsLoading(false)
       }
     }
     loadData()
@@ -95,7 +75,6 @@ export function PilotWorkspace({
       const updated = await updatePilotCase(selectedPilot.id, { status: newStatus })
       if (updated) {
         setSelectedPilot(updated)
-        setPilotCases(prev => prev.map(p => p.id === updated.id ? updated : p))
       }
     } catch (e) {
       console.error('Failed to update pilot status:', e)
@@ -137,6 +116,15 @@ export function PilotWorkspace({
   const nextAct = pilot.next_action || {}
   const baseline = pilot.baseline_summary || {}
   const recOption = pilot.recommended_option || {}
+  const hasSimulationEvidence = Boolean(
+    pilot.evidence_strength &&
+    pilot.evidence_strength !== 'NOT_AVAILABLE' &&
+    (Object.keys(baseline).length > 0 || Object.keys(recOption).length > 0)
+  )
+  const formatMetric = (value, suffix = '') => {
+    const numericValue = Number(value)
+    return Number.isFinite(numericValue) ? `${numericValue}${suffix}` : '—'
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
@@ -336,15 +324,19 @@ export function PilotWorkspace({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
-                {isRu ? 'Рекомендуемый кандидат для полевой проверки' : 'Model-Supported Candidate for Field Validation'}
+                {isRu ? 'Кандидат для полевой проверки' : 'Candidate for Field Validation'}
               </span>
               <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#38bdf8' }}>
-                {isRu ? (recOption.label_ru || recOption.label) : recOption.label}
+                {hasSimulationEvidence
+                  ? (isRu ? (recOption.label_ru || recOption.label) : recOption.label)
+                  : (isRu ? 'Симуляционный кандидат недоступен' : 'No simulated candidate available')}
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <span style={{ background: 'rgba(74, 222, 128, 0.15)', color: '#4ade80', padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>
-                🛡️ {isRu ? 'Сила доказательств: ВЫСОКАЯ' : 'Evidence: HIGH (85/100)'}
+              <span style={{ background: hasSimulationEvidence ? 'rgba(74, 222, 128, 0.15)' : 'rgba(148, 163, 184, 0.15)', color: hasSimulationEvidence ? '#4ade80' : '#94a3b8', padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>
+                🛡️ {hasSimulationEvidence
+                  ? `${isRu ? 'Доказательность' : 'Evidence'}: ${pilot.evidence_strength}`
+                  : (isRu ? 'Доказательность: НЕДОСТУПНО' : 'Evidence: NOT AVAILABLE')}
               </span>
               <span style={{ background: 'rgba(217, 119, 6, 0.15)', color: '#fbbf24', padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>
                 ⚙️ {pilot.calibration_status || 'UNCALIBRATED'}
@@ -355,19 +347,19 @@ export function PilotWorkspace({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: '6px' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{isRu ? 'Базовая задержка' : 'Baseline Delay'}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>{baseline.average_waiting_seconds || 24.8}s</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff' }}>{formatMetric(baseline.average_waiting_seconds, ' s')}</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: '6px' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{isRu ? 'Ожидаемое снижение' : 'Estimated Reduction'}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4ade80' }}>-{recOption.expected_delay_reduction_pct || 28.0}%</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4ade80' }}>{formatMetric(recOption.expected_delay_reduction_pct, '%')}</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: '6px' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{isRu ? 'Снижение выбросов CO₂' : 'CO₂ Reduction'}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4ade80' }}>-{recOption.expected_co2_reduction_pct || 17.8}%</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4ade80' }}>{formatMetric(recOption.expected_co2_reduction_pct, '%')}</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.7rem', borderRadius: '6px' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{isRu ? 'Базовый поток' : 'Baseline Flow'}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#38bdf8' }}>{baseline.throughput_vehicles_per_hour || 1820} veh/h</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#38bdf8' }}>{formatMetric(baseline.throughput_vehicles_per_hour, ' veh/h')}</div>
             </div>
           </div>
         </div>

@@ -192,8 +192,10 @@ def compute_geh(simulated_flow: float, observed_flow: float) -> float:
     Formula: GEH = sqrt( 2 * (M - C)^2 / (M + C) )
     where M = modeled flow (veh/h) and C = observed count (veh/h).
     """
-    m = max(0.0, float(simulated_flow))
-    c = max(0.0, float(observed_flow))
+    m = float(simulated_flow)
+    c = float(observed_flow)
+    if m < 0.0 or c < 0.0:
+        raise ValueError("GEH requires non-negative modeled and observed flows.")
 
     if m + c == 0.0:
         return 0.0
@@ -208,9 +210,10 @@ def evaluate_geh_batch(
     threshold: float = 5.0,
     required_pass_rate: float = 85.0
 ) -> Dict[str, Any]:
-    """
-    Evaluates a set of (simulated, observed) flow pairs against UK WebTAG / DMRB standards.
-    Standard: GEH < 5.0 for at least 85% of hourly link/turning flows.
+    """Evaluate configured UrbanMind GEH acceptance criteria.
+
+    Defaults are informed by traffic-assignment guidance; they are project
+    methodology settings, not a universal legal or scientific threshold.
     """
     if not comparisons:
         return {
@@ -220,6 +223,9 @@ def evaluate_geh_batch(
             "pct_under_5": 0.0,
             "threshold": threshold,
             "required_pass_rate": required_pass_rate,
+            "is_criteria_met": False,
+            # Compatibility alias; it is not a claim of formal WebTAG
+            # certification. New callers must use is_criteria_met.
             "is_webtag_compliant": False,
             "notes_en": "No flow comparison pairs provided for GEH evaluation.",
             "notes_ru": "Нет пар сопоставления потоков для расчета статистики GEH.",
@@ -239,9 +245,10 @@ def evaluate_geh_batch(
         "pct_under_5": pct_under,
         "threshold": threshold,
         "required_pass_rate": required_pass_rate,
+        "is_criteria_met": is_compliant,
         "is_webtag_compliant": is_compliant,
-        "notes_en": f"GEH < {threshold} for {pct_under}% of movements ({under_threshold_count}/{n}). UK WebTAG threshold (>= {required_pass_rate}%): {'PASS' if is_compliant else 'FAIL'}.",
-        "notes_ru": f"GEH < {threshold} для {pct_under}% направлений ({under_threshold_count}/{n}). Стандарт UK WebTAG (>= {required_pass_rate}%): {'СОБЛЮДЕН' if is_compliant else 'НЕ СОБЛЮДЕН'}.",
+        "notes_en": f"GEH < {threshold} for {pct_under}% of movements ({under_threshold_count}/{n}). UrbanMind configured criterion (informed by traffic-assignment guidance, >= {required_pass_rate}%): {'PASS' if is_compliant else 'FAIL'}.",
+        "notes_ru": f"GEH < {threshold} для {pct_under}% направлений ({under_threshold_count}/{n}). Настроенный критерий UrbanMind (основан на рекомендациях по транспортному моделированию, >= {required_pass_rate}%): {'СОБЛЮДЕН' if is_compliant else 'НЕ СОБЛЮДЕН'}.",
     }
 
 

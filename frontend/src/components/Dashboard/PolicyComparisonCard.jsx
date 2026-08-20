@@ -115,7 +115,7 @@ export function PolicyComparisonCard({
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.02)', padding: '3px', borderRadius: '4px' }}>
                     <div style={{ color: 'var(--text-muted)' }}>CO₂</div>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{Number(item.co2_kg || 0).toFixed(1)}kg</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{Number(item.sumo_co2_kg || 0).toFixed(4)}kg</div>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.02)', padding: '3px', borderRadius: '4px' }}>
                     <div style={{ color: 'var(--text-muted)' }}>{isRu ? 'Поток' : 'Throughput'}</div>
@@ -158,4 +158,3 @@ export function PolicyComparisonCard({
     </div>
   )
 }
-

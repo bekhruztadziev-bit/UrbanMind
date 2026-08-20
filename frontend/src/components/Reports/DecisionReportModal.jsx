@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   exportDecisionReportToJson,
   exportDecisionReportToCsv,
@@ -45,8 +45,8 @@ export function DecisionReportModal({
   const mvr = report.model_vs_reality || { observed_metrics: [], simulated_metrics: [], derived_metrics: [] }
   const nextAction = report.next_action || {
     action_code: 'FIELD_DETECTOR_VALIDATION',
-    title_en: 'Deploy Temporary Radar/Camera Count Validation at cluster_1 and cluster_2',
-    title_ru: 'Установка временных детекторов/камер на узлах cluster_1 и cluster_2',
+    title_en: 'Plan verified temporary turning-count validation',
+    title_ru: 'Спланировать верифицированную временную проверку поворотных потоков',
     priority: 'HIGH',
   }
 
@@ -169,7 +169,7 @@ export function DecisionReportModal({
               <span>📍</span>
               <span>{spatial.city_name || 'Tashkent'}</span>
               <span style={{ color: 'var(--text-muted)' }}>›</span>
-              <span>{isRu ? (spatial.district_name_ru || spatial.district_name || 'Юнусабадский район') : (spatial.district_name || 'Mirzo Ulugbek District')}</span>
+              <span>{isRu ? (spatial.district_name_ru || spatial.district_name || 'Неверифицированный демонстрационный район') : (spatial.district_name || 'Unverified demonstration district')}</span>
               <span style={{ color: 'var(--text-muted)' }}>›</span>
               <span style={{ color: '#38bdf8' }}>{isRu ? (spatial.corridor_name_ru || spatial.corridor_name || 'Центральный коридор') : (spatial.corridor_name || 'Central Corridor')}</span>
             </div>
@@ -570,7 +570,7 @@ export function DecisionReportModal({
               {/* Simulated Physics Section */}
               <div>
                 <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span className="provenance-badge simulated">SIMULATED</span> {isRu ? 'Моделируемая физика (SUMO 1.27+ / HBEFA)' : 'Microscopic Physics Engine (SUMO / HBEFA)'}
+                  <span className="provenance-badge simulated">SIMULATED</span> {isRu ? 'Микроскопическая модель SUMO/TraCI' : 'Microscopic SUMO/TraCI model'}
                 </h5>
                 <table className="comparison-table" style={{ width: '100%', fontSize: '0.82rem' }}>
                   <thead>
@@ -748,7 +748,7 @@ export function DecisionReportModal({
                                 {Number(pVal.average_waiting_seconds || 0).toFixed(1)}s
                               </td>
                               <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                {Number(pVal.co2_kg || 0).toFixed(1)}kg
+                                {Number(pVal.sumo_co2_kg || 0).toFixed(4)}kg
                               </td>
                               <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
                                 {Number(pVal.throughput_vehicles_per_hour || 0).toFixed(0)}
@@ -772,16 +772,16 @@ export function DecisionReportModal({
                     🌐 {isRu ? 'Межрайонная пространственная готовность' : 'Cross-District Spatial Scope Readiness'}
                   </div>
                   <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    {isRu 
-                      ? 'Оптимизация коридора согласована с соседними районами (Чиланзарский и Яккасарайский районы) для предотвращения эффекта вытеснения заторов.'
-                      : 'Corridor optimization is evaluated with neighboring district awareness (Chilanzar & Yakkasaray districts) to mitigate spillover bottleneck migration.'}
+                    {isRu
+                      ? 'Межрайонные связи не верифицированы в текущем демонстрационном наборе. Внешние эффекты очередей не оценены.'
+                      : 'Cross-district relationships are not verified in the current demonstration dataset; spillover effects have not been evaluated.'}
                   </p>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.74rem' }}>
                     <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', color: '#cbd5e1' }}>
-                      {isRu ? 'Риск перелива очередей: НИЗКИЙ' : 'Spillover Queue Risk: LOW'}
+                      {isRu ? 'Риск перелива очередей: НЕ ОЦЕНЕН' : 'Spillover Queue Risk: NOT EVALUATED'}
                     </span>
                     <span style={{ padding: '0.2rem 0.5rem', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', color: '#cbd5e1' }}>
-                      {isRu ? 'Транзитная связность: СОХРАНЕНА' : 'Transit Continuity: PRESERVED'}
+                      {isRu ? 'Транзитная связность: НЕ ОЦЕНЕНА' : 'Transit Continuity: NOT EVALUATED'}
                     </span>
                   </div>
                 </div>
@@ -934,13 +934,13 @@ export function DecisionReportModal({
 
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <span className="provenance-badge simulated">
-                  {isRu ? `Выборка: ${robustness.sample_count || 3} прогонов` : `Sample Size: ${robustness.sample_count || 3} seeds`}
+                  {isRu ? `Выборка: ${robustness.sample_count ?? 0} прогонов` : `Sample Size: ${robustness.sample_count ?? 0} seeds`}
                 </span>
-                <span className="provenance-badge direct">
-                  {isRu ? '95% Доверительный интервал (Student-t)' : '95% Confidence Interval (Student-t)'}
+                <span className="provenance-badge simulated">
+                  {isRu ? '95% интервал Student-t по сидам симуляции' : '95% Student-t interval across simulation seeds'}
                 </span>
                 <span className="provenance-badge ai">
-                  {isRu ? 'Детерминированная калибровка' : 'Deterministic Calibration'}
+                  {isRu ? 'Детерминированное ранжирование политик' : 'Deterministic policy ranking'}
                 </span>
               </div>
 

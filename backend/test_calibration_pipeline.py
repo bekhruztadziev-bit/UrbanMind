@@ -1,150 +1,130 @@
-import pytest
+import app.services.calibration.service as calibration_service
+from app.services.calibration.mappings import MovementMapping, MovementMappingRegistry
 from app.services.calibration.service import (
-    validate_field_observations,
-    import_field_observation_dataset,
+    compute_validation_metrics,
     evaluate_field_calibration,
-    get_calibration_status,
+    import_field_observation_dataset,
+    validate_field_observations,
 )
+from app.services.simulation.network_inspector import get_network_identity
 
 
-def test_field_observation_validation_valid():
-    valid_dataset = {
-        "dataset_id": "DS-TEST-001",
-        "name": "Morning Peak Turning Counts",
-        "purpose": "CALIBRATION",
-        "observations": [
-            {
-                "intersection_id": "intersection_1",
-                "approach_id": "northbound",
-                "movement": "through",
-                "interval_minutes": 15,
-                "vehicle_count": 98,
-                "timestamp": "2026-08-20T08:00:00Z",
-            },
-            {
-                "intersection_id": "intersection_2",
-                "approach_id": "southbound",
-                "movement": "left",
-                "interval_minutes": 15,
-                "vehicle_count": 45,
-                "timestamp": "2026-08-20T08:00:00Z",
-            },
-        ],
+def _record(intersection_id="test_ix_1", approach_id="north", movement="through", count=100, timestamp="2026-08-20T08:00:00Z", measurement_window_id="SIM-CAL:test_ix_1"):
+    return {
+        "timestamp": timestamp, "intersection_id": intersection_id, "approach_id": approach_id,
+        "movement": movement, "interval_minutes": 15, "vehicle_count": count,
+        "measurement_window_id": measurement_window_id,
+        "vehicle_class": "passenger_car", "source": "manual field survey", "quality": "STANDARD_TELEMETRY", "notes": "",
     }
-    res = validate_field_observations(valid_dataset)
-    assert res["is_valid"] is True
-    assert len(res["validation_errors"]) == 0
-    assert res["total_counts"] == 143
-    assert len(res["unique_intersections"]) == 2
-    assert res["purpose"] == "CALIBRATION"
 
 
-def test_field_observation_validation_rejections():
-    invalid_dataset = {
-        "dataset_id": "DS-INVALID",
-        "observations": [
-            {
-                "intersection_id": "unknown_intersection_999",
-                "movement": "invalid_turn",
-                "interval_minutes": 500,  # invalid (>120)
-                "vehicle_count": -10,      # negative count
-                "timestamp": "2026-08-20T08:00:00Z",
-            },
-            # Duplicate record
-            {
-                "intersection_id": "intersection_1",
-                "approach_id": "main",
-                "movement": "through",
-                "interval_minutes": 15,
-                "vehicle_count": 50,
-                "timestamp": "2026-08-20T08:00:00Z",
-            },
-            {
-                "intersection_id": "intersection_1",
-                "approach_id": "main",
-                "movement": "through",
-                "interval_minutes": 15,
-                "vehicle_count": 50,
-                "timestamp": "2026-08-20T08:00:00Z",
-            },
-        ],
+def _dataset(dataset_id, purpose, campaign_id, simulation_campaign_id, observations):
+    return {
+        "dataset_id": dataset_id,
+        "purpose": purpose,
+        "campaign_id": campaign_id,
+        "simulation_campaign_id": simulation_campaign_id,
+        "observations": observations,
     }
-    res = validate_field_observations(invalid_dataset)
-    assert res["is_valid"] is False
-    assert len(res["validation_errors"]) >= 4
 
 
-def test_field_calibration_evaluation_pipeline():
-    # 1. Import calibration dataset
-    dataset = {
-        "dataset_id": "DS-CALIB-001",
-        "name": "Corridor Calibration Counts",
-        "purpose": "CALIBRATION",
-        "observations": [
-            {"intersection_id": "intersection_1", "approach_id": "n", "movement": "through", "interval_minutes": 60, "vehicle_count": 410, "timestamp": "2026-08-20T08:00:00Z"},
-            {"intersection_id": "intersection_2", "approach_id": "s", "movement": "through", "interval_minutes": 60, "vehicle_count": 375, "timestamp": "2026-08-20T08:00:00Z"},
-            {"intersection_id": "intersection_3", "approach_id": "e", "movement": "through", "interval_minutes": 60, "vehicle_count": 345, "timestamp": "2026-08-20T08:00:00Z"},
-            {"intersection_id": "intersection_4", "approach_id": "w", "movement": "through", "interval_minutes": 60, "vehicle_count": 385, "timestamp": "2026-08-20T08:00:00Z"},
-        ],
+def _registry():
+    identity = get_network_identity()
+    records = []
+    for index in range(1, 5):
+        records.append(MovementMapping(
+            mapping_id=f"map-{index}", city_id="test-city", district_id="test-district", corridor_id="test-corridor",
+            intersection_id=f"test_ix_{index}", intersection_name=f"Test {index}", approach_id="north",
+            approach_name="North", movement="through", incoming_edge=f"in-{index}", outgoing_edge=f"out-{index}",
+            lane_ids=(f"in-{index}_0",), signal_id=f"signal-{index}", enabled=True, notes="Test-only verified mapping",
+            network_version=identity["network_version"], configuration_hash=identity["network_sha256"],
+            incoming_lane_ids=(f"in-{index}_0",), verification_status="ENABLED",
+            verification_method="TEST_FIXTURE", verified_at="2026-08-20T00:00:00Z", verified_by="test-suite",
+        ))
+    return MovementMappingRegistry(records)
+
+
+def test_mapping_validated_json_import(monkeypatch):
+    monkeypatch.setattr(calibration_service, "get_mapping_registry", _registry)
+    result = validate_field_observations(_dataset("CAL-JSON", "CALIBRATION", "FIELD-CAL", "SIM-CAL", [_record()]))
+    assert result["is_valid"] is True
+    assert result["observations"][0]["mapping_id"] == "map-1"
+    assert result["diagnostics"][0]["status"] == "ACCEPTED"
+
+
+def test_csv_import_and_duplicate_diagnostic(monkeypatch):
+    monkeypatch.setattr(calibration_service, "get_mapping_registry", _registry)
+    header = "dataset_id,purpose,campaign_id,simulation_campaign_id,timestamp,measurement_window_id,intersection_id,approach_id,movement,interval_minutes,vehicle_count,vehicle_class,source,quality,notes"
+    row = "CAL-CSV,CALIBRATION,FIELD-CAL,SIM-CAL,2026-08-20T08:00:00Z,SIM-CAL:test_ix_1,test_ix_1,north,through,15,100,passenger_car,manual,STANDARD_TELEMETRY,ok"
+    result = validate_field_observations({"format": "csv", "csv_text": f"{header}\n{row}\n{row}"})
+    assert result["is_valid"] is False
+    assert len(result["observations"]) == 1
+    assert "Duplicate observation record." in result["validation_errors"][-1]
+
+
+def test_invalid_or_unmapped_records_are_rejected(monkeypatch):
+    monkeypatch.setattr(calibration_service, "get_mapping_registry", _registry)
+    invalid = _record(intersection_id="unknown", movement="invalid", count=-1)
+    result = validate_field_observations(_dataset("BAD", "NOT_HOLDOUT", "FIELD-BAD", "SIM-BAD", [invalid]))
+    assert result["is_valid"] is False
+    assert result["diagnostics"][0]["status"] == "REJECTED"
+    assert any("No enabled, verified SUMO movement mapping" in error for error in result["validation_errors"])
+
+
+def test_calibration_and_holdout_require_separate_mapped_datasets(monkeypatch):
+    monkeypatch.setattr(calibration_service, "get_mapping_registry", _registry)
+    calibration_service._FIELD_DATASETS_STORE.clear()
+    calibration_service._ACTIVE_CALIBRATION_STATUS = "UNCALIBRATED"
+    calibration_service._ACTIVE_CALIBRATION_DATASET_ID = None
+    calibration_service._ACTIVE_VALIDATION_DATASET_ID = None
+    observations = [_record(intersection_id=f"test_ix_{index}", count=100 + index, measurement_window_id=f"SIM-CAL:test_ix_{index}") for index in range(1, 5)]
+    imported = import_field_observation_dataset(_dataset("CAL-1", "CALIBRATION", "FIELD-CAL", "SIM-CAL", observations))
+    assert imported["is_valid"]
+    identity = get_network_identity()
+    sums = {
+        f"map-{index}": {
+            "mapping_id": f"map-{index}", "mapping_version": "v1", "interval_minutes": 15,
+            "provenance": "SIMULATED", "network_version": identity["network_version"],
+            "network_configuration_hash": identity["network_sha256"], "simulation_id": "SIM-CAL",
+            "measurement_window_id": f"SIM-CAL:test_ix_{index}", "vehicle_classes": {"passenger_car": 100 + index},
+        } for index in range(1, 5)
     }
-    imported = import_field_observation_dataset(dataset)
-    assert imported["is_valid"] is True
-
-    # 2. Evaluate calibration
-    sim_counts = {
-        "intersection_1": 420.0,
-        "intersection_2": 380.0,
-        "intersection_3": 350.0,
-        "intersection_4": 390.0,
-    }
-    eval_res = evaluate_field_calibration("DS-CALIB-001", sim_counts)
-    
-    assert eval_res["dataset_id"] == "DS-CALIB-001"
-    assert eval_res["metrics"]["mae"] is not None
-    assert eval_res["metrics"]["mape"] is not None
-    assert eval_res["metrics"]["mape"] <= 15.0  # MAPE is small
-    assert eval_res["metrics"]["geh_pass"] is True
-    assert eval_res["status"] == "CALIBRATED"
-
-    # Status record should reflect updated status
-    status_rec = get_calibration_status()
-    assert status_rec["status"] == "CALIBRATED"
-    assert status_rec["traffic_calibrated"] is True
+    calibrated = evaluate_field_calibration("CAL-1", sums)
+    assert calibrated["status"] == "CALIBRATED"
+    holdout_observations = [
+        _record(intersection_id=f"test_ix_{index}", count=100 + index, timestamp="2026-08-21T08:00:00Z", measurement_window_id=f"SIM-HOLDOUT:test_ix_{index}")
+        for index in range(1, 5)
+    ]
+    holdout = import_field_observation_dataset(_dataset("HOLDOUT-1", "VALIDATION_HOLDOUT", "FIELD-HOLDOUT", "SIM-HOLDOUT", holdout_observations))
+    assert holdout["is_valid"]
+    holdout_sums = {key: {**value, "simulation_id": "SIM-HOLDOUT", "measurement_window_id": value["measurement_window_id"].replace("SIM-CAL", "SIM-HOLDOUT")} for key, value in sums.items()}
+    validated = evaluate_field_calibration("HOLDOUT-1", holdout_sums)
+    assert validated["status"] == "VALIDATED"
+    leaked = evaluate_field_calibration("CAL-1", sums)
+    assert leaked["is_holdout_validation"] is False
+    assert leaked["status"] == "CALIBRATED"
 
 
-def test_independent_holdout_validation_pipeline():
-    # 1. Attempting holdout validation with the SAME dataset ID must fail
-    invalid_holdout_eval = evaluate_field_calibration("DS-CALIB-001")
-    # If the dataset was used for calibration, cannot validate with it
-    # Import a proper independent holdout dataset
-    holdout_ds = {
-        "dataset_id": "DS-HOLDOUT-001",
-        "name": "Independent Holdout Verification Counts",
-        "purpose": "VALIDATION_HOLDOUT",
-        "observations": [
-            {"intersection_id": "intersection_1", "approach_id": "n", "movement": "through", "interval_minutes": 60, "vehicle_count": 418, "timestamp": "2026-08-21T08:00:00Z"},
-            {"intersection_id": "intersection_2", "approach_id": "s", "movement": "through", "interval_minutes": 60, "vehicle_count": 376, "timestamp": "2026-08-21T08:00:00Z"},
-            {"intersection_id": "intersection_3", "approach_id": "e", "movement": "through", "interval_minutes": 60, "vehicle_count": 348, "timestamp": "2026-08-21T08:00:00Z"},
-            {"intersection_id": "intersection_4", "approach_id": "w", "movement": "through", "interval_minutes": 60, "vehicle_count": 387, "timestamp": "2026-08-21T08:00:00Z"},
-        ],
-    }
-    imported_holdout = import_field_observation_dataset(holdout_ds)
-    assert imported_holdout["is_valid"] is True
-    assert imported_holdout["purpose"] == "VALIDATION_HOLDOUT"
+def test_holdout_with_same_content_or_campaign_is_rejected(monkeypatch):
+    monkeypatch.setattr(calibration_service, "get_mapping_registry", _registry)
+    calibration_service._FIELD_DATASETS_STORE.clear()
+    calibration_service._ACTIVE_CALIBRATION_STATUS = "UNCALIBRATED"
+    calibration_service._ACTIVE_CALIBRATION_DATASET_ID = None
+    observations = [_record(intersection_id=f"test_ix_{index}", count=100 + index, measurement_window_id=f"SIM-CAL:test_ix_{index}") for index in range(1, 5)]
+    import_field_observation_dataset(_dataset("CAL-LEAK", "CALIBRATION", "FIELD-ONE", "SIM-CAL", observations))
+    identity = get_network_identity()
+    sums = {f"map-{index}": {"mapping_id": f"map-{index}", "mapping_version": "v1", "interval_minutes": 15, "provenance": "SIMULATED", "network_version": identity["network_version"], "network_configuration_hash": identity["network_sha256"], "simulation_id": "SIM-CAL", "measurement_window_id": f"SIM-CAL:test_ix_{index}", "vehicle_classes": {"passenger_car": 100 + index}} for index in range(1, 5)}
+    assert evaluate_field_calibration("CAL-LEAK", sums)["status"] == "CALIBRATED"
+    import_field_observation_dataset(_dataset("HOLDOUT-LEAK", "VALIDATION_HOLDOUT", "FIELD-ONE", "SIM-HOLDOUT", observations))
+    result = evaluate_field_calibration("HOLDOUT-LEAK", sums)
+    assert result["thresholds_met"]["independent_holdout"] is False
+    assert "Holdout rejected" in result["summary_en"]
 
-    sim_counts = {
-        "intersection_1": 420.0,
-        "intersection_2": 380.0,
-        "intersection_3": 350.0,
-        "intersection_4": 390.0,
-    }
-    holdout_eval = evaluate_field_calibration("DS-HOLDOUT-001", sim_counts)
-    assert holdout_eval["is_holdout_validation"] is True
-    assert holdout_eval["thresholds_met"]["independent_holdout"] is True
-    assert holdout_eval["thresholds_met"]["geh_compliant"] is True
-    assert holdout_eval["status"] == "VALIDATED"
 
-    # Status record should reflect VALIDATED
-    status_rec = get_calibration_status()
-    assert status_rec["status"] == "VALIDATED"
-    assert status_rec["active_validation_dataset_id"] == "DS-HOLDOUT-001"
+def test_validation_metric_and_geh_correctness():
+    metrics = compute_validation_metrics([100, 200], [110, 190])
+    assert metrics["mae"] == 10.0
+    assert metrics["rmse"] == 10.0
+    assert metrics["bias"] == 0.0
+    assert metrics["mean_bias_error"] == 0.0
+    assert metrics["geh_pass"] is True

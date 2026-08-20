@@ -77,6 +77,8 @@ def test_component_scores_and_policy_breakdown():
         "average_speed_kmh": 20.0,
         "co2_kg": 50.0,
         "nox_g": 200.0,
+        "sumo_co2_kg": 50.0,
+        "sumo_nox_g": 200.0,
         "noise_db": 68.0,
         "pedestrian_delay_seconds": 15.0,
         "accessibility_score": 80.0,
@@ -92,6 +94,8 @@ def test_component_scores_and_policy_breakdown():
         "average_speed_kmh": 28.0,
         "co2_kg": 52.0,  # 4% worsening
         "nox_g": 205.0,
+        "sumo_co2_kg": 52.0,
+        "sumo_nox_g": 205.0,
         "noise_db": 69.0,
         "pedestrian_delay_seconds": 16.0,
         "accessibility_score": 80.0,
@@ -133,6 +137,8 @@ def test_policy_ranking_shifts():
         "throughput_vehicles_per_hour": 550.0,
         "co2_kg": 50.0,
         "nox_g": 200.0,
+        "sumo_co2_kg": 50.0,
+        "sumo_nox_g": 200.0,
         "noise_db": 65.0,
         "pedestrian_delay_seconds": 15.0,
         "accessibility_score": 85.0,
@@ -149,6 +155,8 @@ def test_policy_ranking_shifts():
         "throughput_vehicles_per_hour": 660.0,
         "co2_kg": 51.0,
         "nox_g": 204.0,
+        "sumo_co2_kg": 51.0,
+        "sumo_nox_g": 204.0,
         "noise_db": 66.0,
         "pedestrian_delay_seconds": 17.0,
         "accessibility_score": 82.0,
@@ -165,6 +173,8 @@ def test_policy_ranking_shifts():
         "throughput_vehicles_per_hour": 570.0,
         "co2_kg": 38.0,  # 24% CO2 reduction
         "nox_g": 150.0,  # 25% NOx reduction
+        "sumo_co2_kg": 38.0,
+        "sumo_nox_g": 150.0,
         "noise_db": 58.0,
         "pedestrian_delay_seconds": 12.0,
         "accessibility_score": 95.0,
@@ -242,4 +252,3 @@ def test_deterministic_why_this_won_generation():
     bal_ru = generate_why_this_won_explanation(BALANCED_POLICY, cand, language="ru")
     assert "BALANCED Winner" in bal_en
     assert "Победитель по политике БАЛАНС" in bal_ru
-

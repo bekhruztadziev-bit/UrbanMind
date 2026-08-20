@@ -181,7 +181,7 @@
   "resultsMatrixTab": "Results Matrix",
   "interventionEffectTab": "Intervention Effect",
   "robustnessTab": "Robustness",
-  "mapAnalysisZone": "Analysis Zone: Central Tashkent Corridor",
+  "mapAnalysisZone": "Configured Demonstration Corridor",
   "mapAirMonitoring": "Air Monitoring: Uzhydromet / WAQI",
   "introTitle": "URBANMIND",
   "introSubtitle": "Neighborhood Mobility Intelligence & Urban Digital Twin",
@@ -279,7 +279,7 @@
   "pilotCaseTitle": "Municipal Pilot Cases & Defensible Briefs",
   "modelVsReality": "Model vs Reality",
   "observedData": "Observed Data (Physical Sensors)",
-  "simulatedData": "Simulated Physics (SUMO / HBEFA)",
+  "simulatedData": "Simulated model output (SUMO / TraCI)",
   "derivedData": "Derived Indicators (Policy Engine)",
   "evidenceStrength": "Evidence Strength",
   "evidenceLow": "LOW",
@@ -317,6 +317,6 @@
   "primaryOutcomes": "Primary Mobility Outcomes",
   "secondaryOutcomes": "Secondary Outcomes",
   "holdoutValidation": "Holdout Validation",
-  "gehStandard": "GEH Standard (UK WebTAG)"
+  "gehStandard": "UrbanMind configured GEH criterion"
 }
-
+
