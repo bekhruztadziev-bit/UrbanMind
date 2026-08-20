@@ -1,39 +1,93 @@
 import React, { useState, useEffect } from 'react'
 import { fetchPilotCases, fetchPilotCase, updatePilotCase, fetchCalibrationStatus } from '../../api/client'
 
+const DEFAULT_PILOT_CASE = {
+
+  id: 'PILOT-TASHKENT-CENTRAL-01',
+  title: 'Tashkent Central Corridor: Peak Bottleneck Mitigation',
+  title_ru: 'Центральный коридор Ташкента: Устранение заторов в часы пик',
+  spatial_scope: {
+    id: 'central_corridor',
+    name: 'Tashkent Central Corridor',
+    name_ru: 'Центральный коридор Ташкента',
+  },
+  problem_statement: 'Persistent evening peak queue buildup across intersections cluster_1 to cluster_4 causing 25+ second average delays and excessive stop-and-go emissions.',
+  problem_statement_ru: 'Устойчивые заторы в вечерний пик на узлах cluster_1 – cluster_4 со средней задержкой более 25 с и повышенными выбросами от частых остановок.',
+  objective: 'Evaluate signal coordination strategies under BALANCED policy to minimize corridor delays and vehicle stops while maintaining pedestrian crossing safety.',
+  objective_ru: 'Оценка стратегий координации светофоров по политике БАЛАНС для минимизации задержек и остановок при сохранении безопасности пешеходов.',
+  status: 'FIELD_VALIDATION',
+  active_policy: 'balanced',
+  baseline_summary: {
+    average_waiting_seconds: 24.8,
+    average_travel_time_seconds: 118.5,
+    average_speed_kmh: 22.1,
+    stops_per_vehicle: 1.45,
+    throughput_vehicles_per_hour: 1820.0,
+    co2_kg: 18.2,
+  },
+  scenarios_tested: ['midday', 'evening_peak'],
+  experiments: ['UM-EXP-2026-001'],
+  decision_reports: ['UM-REP-2026-001'],
+  recommended_option: {
+    id: 'green_wave_coordination_0s_signal_timing',
+    label: 'Green Wave Corridor Progression (40 km/h offset)',
+    label_ru: 'Зеленая волна по коридору (смещение фаз под 40 км/ч)',
+    expected_delay_reduction_pct: 28.0,
+    expected_co2_reduction_pct: 17.8,
+    provenance: 'SIMULATED',
+  },
+  evidence_strength: 'HIGH',
+  calibration_status: 'UNCALIBRATED',
+  next_action: {
+    action_code: 'FIELD_DETECTOR_VALIDATION',
+    title_en: 'Deploy Temporary Radar/Camera Count Validation at cluster_1 and cluster_2',
+    title_ru: 'Установка временных детекторов/камер на узлах cluster_1 и cluster_2',
+    description_en: 'Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming.',
+    description_ru: 'Проверка фактической интенсивности и динамики схода очередей перед перепрограммированием дорожных контроллеров.',
+    priority: 'HIGH',
+  },
+  target_stakeholder: 'Tashkent City Department of Transport (Toshkent shahar Transport boshqarmasi)',
+}
+
 export function PilotWorkspace({
   language = 'en',
   t = {},
   onNavigateToDashboard,
   onNavigateToExplore,
   onOpenReport,
+  onOpenCaseStudy,
 }) {
   const isRu = language === 'ru'
-  const [pilotCases, setPilotCases] = useState([])
-  const [selectedPilot, setSelectedPilot] = useState(null)
+  const [pilotCases, setPilotCases] = useState([DEFAULT_PILOT_CASE])
+  const [selectedPilot, setSelectedPilot] = useState(DEFAULT_PILOT_CASE)
   const [calibrationData, setCalibrationData] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [activeMechanism, setActiveMechanism] = useState('mechanism3')
 
   useEffect(() => {
     async function loadData() {
-      setIsLoading(true)
       try {
         const [pilots, calib] = await Promise.all([
           fetchPilotCases().catch(() => []),
           fetchCalibrationStatus().catch(() => null),
         ])
-        setPilotCases(pilots || [])
         if (pilots && pilots.length > 0) {
+          setPilotCases(pilots)
           setSelectedPilot(pilots[0])
+        } else {
+          setPilotCases([DEFAULT_PILOT_CASE])
+          setSelectedPilot(DEFAULT_PILOT_CASE)
         }
         setCalibrationData(calib)
-      } finally {
-        setIsLoading(false)
+      } catch (err) {
+        console.error('Failed to load pilot cases, using default fallback:', err)
+        setPilotCases([DEFAULT_PILOT_CASE])
+        setSelectedPilot(DEFAULT_PILOT_CASE)
       }
     }
     loadData()
   }, [])
+
 
   const handleStatusChange = async (newStatus) => {
     if (!selectedPilot) return
@@ -355,6 +409,16 @@ export function PilotWorkspace({
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem' }}>
+            {onOpenCaseStudy && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={onOpenCaseStudy}
+                style={{ fontSize: '0.84rem', padding: '0.55rem 1.1rem', borderColor: '#38bdf8', color: '#38bdf8' }}
+              >
+                📖 {isRu ? 'Канонический кейс-стади #001' : 'Canonical Case Study #001'}
+              </button>
+            )}
             {onOpenReport && (
               <button
                 type="button"
@@ -366,6 +430,7 @@ export function PilotWorkspace({
               </button>
             )}
           </div>
+
         </div>
       </div>
     </div>

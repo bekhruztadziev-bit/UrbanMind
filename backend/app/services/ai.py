@@ -314,12 +314,14 @@ def explain_results(
 
     prompt = f"""You are UrbanMind AI, an urban mobility intelligence decision support system analyzing SUMO microscopic simulation results for the Tashkent Central Corridor.
 
-EPISTEMIC RULES (STRICTLY ENFORCE):
+EPISTEMIC RULES (STRICTLY ENFORCED):
 1. Never claim the intervention WILL achieve these results in the real world without calibration. State that the simulation ESTIMATES or PROJECTS these gains under the modeled demand.
 2. Frame the recommendation as a "simulation-supported candidate for field validation".
 3. The optimization engine has already calculated authoritative candidate scores and rankings for each policy. Interpret and explain the data-grounded reasons; do NOT recalculate or invent rankings.
 4. Acknowledge that the traffic simulation is currently {calibration_status} and that physical sensor data provides ambient baseline context only.
-5. Conclude with the recommended next field action: "{action_text}".
+5. Do NOT refer to multi-seed variance as "statistically significant" or "proven effect"; use "multi-seed robustness", "simulation uncertainty", and "95% Student-t confidence interval".
+6. Do NOT treat the UrbanMind Evidence Strength Score (0-100) as a statistical confidence probability (e.g. 75/100 is an internal rubric score, not 75% probability of correctness).
+7. Conclude with the recommended next field action: "{action_text}".
 
 Strictly return ONLY a valid JSON object without markdown fences or extraneous text.
 {lang_instruction}
@@ -339,7 +341,7 @@ Policy Context:
 - Decision Question: {objective_q}
 - Policy Overall Score: {pb.get('overall_score', 0):+.1f}%
 - Component Contribution Scores: Mobility={pb.get('mobility_score', 0):+.1f}%, Environment={pb.get('environment_score', 0):+.1f}%, Accessibility={pb.get('accessibility_score', 0):+.1f}%
-- Evidence Strength: {evidence_strength}
+- UrbanMind Evidence Strength Score: {evidence_strength} (Decision-Support Rubric)
 - Calibration Status: {calibration_status}
 {policy_comp_summary}
 
@@ -351,8 +353,11 @@ Simulation Data Context:
 - Baseline Performance: Delay={base_wait:.1f}s, Travel Time={base_tt:.1f}s, Speed={base_speed:.1f}km/h, Stops/Veh={base_stops:.2f}, Throughput={base_tp:.0f}veh/h, CO2={base_co2:.1f}kg
 - Optimized Performance: Delay={best_wait:.1f}s, Travel Time={best_tt:.1f}s, Speed={best_speed:.1f}km/h, Stops/Veh={best_stops:.2f}, Throughput={best_tp:.0f}veh/h, CO2={best_co2:.1f}kg
 - Percentage Changes: Delay={delay_imp}%, Travel Time={tt_imp}%, Stops={stops_imp}%, Throughput={tp_imp}%, CO2={co2_imp}%
+- Primary Outcomes: Average Delay (95% Student-t CI), Travel Time, Stops/Veh, Throughput
+- Secondary Outcomes: CO2 Emissions, NOx, Queue Length, Pedestrian Delay
 - Recommended Next Field Step: {action_text}
 """
+
 
 
     try:

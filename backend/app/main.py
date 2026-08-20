@@ -423,7 +423,109 @@ async def export_report_html_endpoint(payload: dict[str, Any] | None = None) -> 
     }
 
 
-# ── Calibration data & model validation endpoints ────────────────────────
+# ── Canonical Experiment endpoints ────────────────────────────────────────
+
+@app.get("/api/experiments/canonical")
+async def get_canonical_experiment_endpoint() -> dict[str, Any]:
+    """Returns the immutable specification of the Canonical Central Tashkent Corridor Experiment (UM-EXP-2026-001)."""
+    from app.services.simulation.canonical import get_canonical_experiment_config
+    return get_canonical_experiment_config()
+
+
+@app.post("/api/experiments/canonical/run")
+async def run_canonical_experiment_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Executes the Canonical Multi-Scenario Experiment across demand levels (0.8x, 1.0x, 1.2x),
+    multi-seed stochastic variance, and evaluates FLOW, ECO, and BALANCED from a shared evidence set.
+    """
+    from app.services.simulation.canonical import run_canonical_experiment, get_canonical_experiment_config
+    from app.services.analytics.service import record_analytics_event
+    body = payload or {}
+    language = str(body.get("language", "en"))
+    
+    cfg = get_canonical_experiment_config()
+    result = await asyncio.to_thread(run_canonical_experiment, cfg, language)
+    record_analytics_event("canonical_experiment_runs", {"experiment_id": result.get("experiment_id")})
+    return result
+
+
+# ── Case Studies endpoints ───────────────────────────────────────────────
+
+@app.get("/api/case-studies")
+async def list_case_studies_endpoint(language: str = "en") -> list[dict[str, Any]]:
+    """Returns all registered municipal case studies."""
+    from app.services.case_studies.service import list_case_studies
+    return list_case_studies(language=language)
+
+
+@app.get("/api/case-studies/canonical")
+async def get_canonical_case_study_endpoint(language: str = "en") -> dict[str, Any]:
+    """Returns the primary Canonical Case Study for the Central Tashkent Corridor (UM-CS-2026-001)."""
+    from app.services.case_studies.service import get_canonical_case_study
+    from app.services.analytics.service import record_analytics_event
+    cs = get_canonical_case_study(language=language)
+    record_analytics_event("case_studies_generated", {"case_id": cs.get("case_id")})
+    return cs
+
+
+@app.get("/api/case-studies/{case_id}")
+async def get_case_study_endpoint(case_id: str, language: str = "en") -> dict[str, Any]:
+    """Retrieves a single case study by ID."""
+    from app.services.case_studies.service import get_case_study
+    cs = get_case_study(case_id, language=language)
+    if not cs:
+        raise HTTPException(status_code=404, detail=f"Case study '{case_id}' not found.")
+    return cs
+
+
+@app.post("/api/case-studies/generate")
+async def generate_case_study_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Derives a new CaseStudy from a canonical experiment and DecisionReport."""
+    from app.services.case_studies.service import create_case_study
+    from app.services.analytics.service import record_analytics_event
+    body = payload or {}
+    language = str(body.get("language", "en"))
+    cs = create_case_study(body, language=language)
+    record_analytics_event("case_studies_generated", {"case_id": cs.get("case_id")})
+    return cs
+
+
+@app.post("/api/case-studies/export/csv")
+async def export_case_study_csv_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Exports a CaseStudy into structured CSV format."""
+    from app.services.case_studies.exporter import export_case_study_csv
+    from app.services.case_studies.service import get_canonical_case_study
+    from app.services.analytics.service import record_analytics_event
+    body = payload or {}
+    cs = body.get("case_study") or get_canonical_case_study()
+    csv_text = export_case_study_csv(cs)
+    record_analytics_event("case_study_exports", {"format": "csv", "case_id": cs.get("case_id")})
+    return {
+        "case_id": cs.get("case_id", "case_study"),
+        "filename": f"urbanmind_case_study_{cs.get('case_id', 'export')}.csv",
+        "csv": csv_text,
+    }
+
+
+@app.post("/api/case-studies/export/html")
+async def export_case_study_html_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Exports a CaseStudy into printable HTML / PDF format."""
+    from app.services.case_studies.exporter import export_case_study_html
+    from app.services.case_studies.service import get_canonical_case_study
+    from app.services.analytics.service import record_analytics_event
+    body = payload or {}
+    language = str(body.get("language", "en"))
+    cs = body.get("case_study") or get_canonical_case_study(language=language)
+    html_text = export_case_study_html(cs, language=language)
+    record_analytics_event("case_study_exports", {"format": "html_pdf", "case_id": cs.get("case_id")})
+    return {
+        "case_id": cs.get("case_id", "case_study"),
+        "filename": f"urbanmind_case_study_{cs.get('case_id', 'export')}.html",
+        "html": html_text,
+    }
+
+
+# ── Calibration data, Field Import & Validation endpoints ────────────────
 
 @app.get("/api/calibration/status")
 async def calibration_status_endpoint(scope_id: str = "central_corridor") -> dict[str, Any]:
@@ -445,6 +547,45 @@ async def calibration_status_endpoint(scope_id: str = "central_corridor") -> dic
     }
 
 
+@app.post("/api/calibration/import")
+async def calibration_import_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Imports and validates a field observation dataset (turning movement counts, radar feeds).
+    Rejects invalid records, non-positive intervals, or duplicates.
+    """
+    from app.services.calibration.service import import_field_observation_dataset
+    from app.services.analytics.service import record_analytics_event
+    body = payload or {}
+    dataset = import_field_observation_dataset(body)
+    record_analytics_event("calibration_datasets_uploaded", {
+        "dataset_id": dataset.get("dataset_id"),
+        "is_valid": dataset.get("is_valid"),
+        "records_count": len(dataset.get("observations", []))
+    })
+    return dataset
+
+
+@app.post("/api/calibration/evaluate")
+async def calibration_evaluate_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """
+    Connects imported field observations to simulation demand outputs, computes MAE, RMSE, MAPE,
+    and transitions calibration status according to explicit threshold rules.
+    """
+    from app.services.calibration.service import evaluate_field_calibration
+    from app.services.analytics.service import record_analytics_event
+    body = payload or {}
+    dataset_id = str(body.get("dataset_id", ""))
+    sim_counts = body.get("simulated_counts")
+    
+    eval_res = evaluate_field_calibration(dataset_id, sim_counts)
+    record_analytics_event("calibration_validations_run", {
+        "dataset_id": dataset_id,
+        "status": eval_res.get("status"),
+        "mape": eval_res.get("metrics", {}).get("mape")
+    })
+    return eval_res
+
+
 @app.post("/api/calibration/validate")
 async def calibration_validate_endpoint(payload: dict[str, Any] | None = None) -> dict[str, Any]:
     """Computes standard transport model validation metrics (MAE, RMSE, MAPE, Bias, Correlation)."""
@@ -456,6 +597,14 @@ async def calibration_validate_endpoint(payload: dict[str, Any] | None = None) -
     unit = str(body.get("unit", "s"))
     
     return compute_validation_metrics(observed, simulated, metric_name, unit)
+
+
+@app.get("/api/calibration/protocol")
+async def calibration_protocol_endpoint(scope_id: str = "central_corridor") -> dict[str, Any]:
+    """Returns the configurable multi-day field validation protocol for the corridor."""
+    from app.services.calibration.service import get_field_validation_protocol
+    return get_field_validation_protocol(scope_id)
+
 
 
 # ── Municipal Pilot Cases endpoints ──────────────────────────────────────
@@ -503,4 +652,5 @@ async def analytics_summary_endpoint() -> dict[str, Any]:
     """Returns product metrics tracking pilot validation activity."""
     from app.services.analytics.service import get_analytics_summary
     return get_analytics_summary()
+
 

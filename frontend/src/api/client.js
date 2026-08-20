@@ -177,3 +177,84 @@ export async function fetchAnalyticsSummary() {
   return handleResponse(response)
 }
 
+export async function fetchCanonicalExperiment() {
+  const response = await fetch(`${API_BASE}/experiments/canonical`)
+  return handleResponse(response)
+}
+
+export async function runCanonicalExperiment(payload = {}) {
+  const response = await fetch(`${API_BASE}/experiments/canonical/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
+export async function fetchCanonicalCaseStudy(language = 'en') {
+  const response = await fetch(`${API_BASE}/case-studies/canonical?language=${encodeURIComponent(language)}`)
+  return handleResponse(response)
+}
+
+export async function fetchCaseStudies(language = 'en') {
+  const response = await fetch(`${API_BASE}/case-studies?language=${encodeURIComponent(language)}`)
+  return handleResponse(response)
+}
+
+export async function fetchCaseStudy(caseId, language = 'en') {
+  const response = await fetch(`${API_BASE}/case-studies/${encodeURIComponent(caseId)}?language=${encodeURIComponent(language)}`)
+  return handleResponse(response)
+}
+
+export async function generateCaseStudy(payload = {}) {
+  const response = await fetch(`${API_BASE}/case-studies/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
+export async function exportCaseStudyCsvApi(payload = {}) {
+  const response = await fetch(`${API_BASE}/case-studies/export/csv`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
+export async function exportCaseStudyHtmlApi(payload = {}) {
+  const response = await fetch(`${API_BASE}/case-studies/export/html`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
+export async function importFieldObservations(payload = {}) {
+  const response = await fetch(`${API_BASE}/calibration/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
+export async function evaluateCalibration(payload = {}) {
+  const response = await fetch(`${API_BASE}/calibration/evaluate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  return handleResponse(response)
+}
+
+export async function fetchCalibrationProtocol(scopeId = 'central_corridor') {
+  const response = await fetch(`${API_BASE}/calibration/protocol?scope_id=${encodeURIComponent(scopeId)}`)
+  return handleResponse(response)
+}
+
+
+

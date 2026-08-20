@@ -13,10 +13,12 @@ import { ExperimentsPage } from './components/Experiments/ExperimentsPage'
 import { HistoryPage } from './components/History/HistoryPage'
 import { PilotWorkspace } from './components/Pilots/PilotWorkspace'
 import { DecisionReportModal } from './components/Reports/DecisionReportModal'
+import { CaseStudyModal } from './components/CaseStudy/CaseStudyModal'
 import { AmbientBackground } from './components/Common/AmbientBackground'
 import { HeroIntro } from './components/Common/HeroIntro'
 import { generateDecisionReport } from './api/client'
 import './App.css'
+
 
 
 const fallbackDistrict = {
@@ -87,6 +89,7 @@ function App() {
   const [showIntro, setShowIntro] = useState(() => localStorage.getItem('urbanmind_hide_intro') !== 'true')
   const [dashboardReportModalOpen, setDashboardReportModalOpen] = useState(false)
   const [dashboardReportData, setDashboardReportData] = useState(null)
+  const [caseStudyModalOpen, setCaseStudyModalOpen] = useState(false)
 
   const {
     metrics,
@@ -243,12 +246,14 @@ function App() {
             setCurrentView={setCurrentView}
             toggleLanguage={toggleLanguage}
             onOpenIntro={() => setShowIntro(true)}
+            onOpenCaseStudy={() => setCaseStudyModalOpen(true)}
           />
           <PilotWorkspace
             language={language}
             t={t}
             onNavigateToDashboard={() => setCurrentView('insights')}
             onNavigateToExplore={() => setCurrentView('explore')}
+            onOpenCaseStudy={() => setCaseStudyModalOpen(true)}
             onOpenReport={() => {
               if (optResult) {
                 handleOpenDashboardDecisionReport(optResult)
@@ -292,6 +297,12 @@ function App() {
           language={language}
           t={t}
         />
+        <CaseStudyModal
+          isOpen={caseStudyModalOpen}
+          onClose={() => setCaseStudyModalOpen(false)}
+          language={language}
+          t={t}
+        />
       </>
     )
   }
@@ -309,6 +320,7 @@ function App() {
             setCurrentView={setCurrentView} 
             toggleLanguage={toggleLanguage} 
             onOpenIntro={() => setShowIntro(true)}
+            onOpenCaseStudy={() => setCaseStudyModalOpen(true)}
           />
           <MapView
             mahalla={mahalla}
@@ -356,8 +368,15 @@ function App() {
         language={language}
         t={t}
       />
+      <CaseStudyModal
+        isOpen={caseStudyModalOpen}
+        onClose={() => setCaseStudyModalOpen(false)}
+        language={language}
+        t={t}
+      />
     </>
   )
 }
 
 export default App
+

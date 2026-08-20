@@ -1,6 +1,6 @@
 import React from 'react'
 
-export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenIntro }) {
+export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenIntro, onOpenCaseStudy }) {
   const getTitle = () => {
     switch(currentView) {
       case 'faq': return t.faqPageTitle;
@@ -30,6 +30,11 @@ export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenI
         <button type="button" className={`ghost-button ${currentView === 'insights' ? 'active' : ''}`} onClick={() => setCurrentView('insights')}>{t.insights}</button>
         <button type="button" className={`ghost-button ${currentView === 'explore' ? 'active' : ''}`} onClick={() => setCurrentView('explore')}>{t.explore}</button>
         <button type="button" className={`ghost-button ${currentView === 'pilots' ? 'active' : ''}`} onClick={() => setCurrentView('pilots')}>🏛️ {t.pilots || 'Pilots'}</button>
+        {onOpenCaseStudy && (
+          <button type="button" className="ghost-button case-study-btn" onClick={onOpenCaseStudy} title="Open Canonical Case Study #001">
+            📖 {t.caseStudy || 'Case Study #001'}
+          </button>
+        )}
         <button type="button" className={`ghost-button ${currentView === 'history' ? 'active' : ''}`} onClick={() => setCurrentView('history')}>{t.history}</button>
         <button type="button" className={`ghost-button ${currentView === 'faq' ? 'active' : ''}`} onClick={() => setCurrentView('faq')}>{t.faq}</button>
         <button type="button" className="language-toggle" onClick={toggleLanguage}>{t.language}</button>
@@ -37,5 +42,6 @@ export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenI
     </header>
   )
 }
+
 
 

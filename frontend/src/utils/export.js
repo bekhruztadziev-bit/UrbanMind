@@ -1,4 +1,5 @@
-import { exportReportCsvApi, exportReportHtmlApi } from '../api/client'
+import { exportReportCsvApi, exportReportHtmlApi, exportCaseStudyCsvApi, exportCaseStudyHtmlApi } from '../api/client'
+
 
 export function exportToJson(scenarios) {
   const dataStr = JSON.stringify(scenarios, null, 2)
@@ -246,3 +247,59 @@ export async function exportDecisionReportToPdf(report, language = 'en') {
     console.error('Failed to export decision report PDF:', err)
   }
 }
+
+/**
+ * Export a CaseStudy object to JSON.
+ */
+export function exportCaseStudyToJson(caseStudy) {
+  if (!caseStudy) return
+  const dataStr = JSON.stringify(caseStudy, null, 2)
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
+  triggerDownload(dataUri, `urbanmind-case-study-${caseStudy.case_id || Date.now()}.json`)
+}
+
+/**
+ * Export a CaseStudy object to CSV via backend exporter API.
+ */
+export async function exportCaseStudyToCsv(caseStudy) {
+  if (!caseStudy) return
+  try {
+    const res = await exportCaseStudyCsvApi({ case_study: caseStudy })
+    if (res?.csv) {
+      const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(res.csv)
+      triggerDownload(dataUri, res.filename || `urbanmind-case-study-${caseStudy.case_id || Date.now()}.csv`)
+      return
+    }
+  } catch (err) {
+    console.warn('Backend CaseStudy CSV export failed:', err)
+  }
+}
+
+/**
+ * Export a CaseStudy as a printable PDF / formatted HTML window.
+ */
+export async function exportCaseStudyToPdf(caseStudy, language = 'en') {
+  if (!caseStudy) return
+  try {
+    const res = await exportCaseStudyHtmlApi({ case_study: caseStudy, language })
+    const htmlContent = res?.html
+    if (htmlContent) {
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.open()
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => {
+          printWindow.print()
+        }, 500)
+        return
+      }
+      const dataUri = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent)
+      triggerDownload(dataUri, res.filename || `urbanmind-case-study-${caseStudy.case_id || Date.now()}.html`)
+    }
+  } catch (err) {
+    console.error('Failed to export case study PDF:', err)
+  }
+}
+

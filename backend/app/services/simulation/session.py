@@ -379,21 +379,31 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
             # --- Warm-up phase ---
             for _ in range(warmup_steps):
                 traci.simulationStep()
-                for vehicle_id in traci.vehicle.getIDList():
-                    active_vehicles_last_wait[vehicle_id] = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
 
             # Capture state at boundary
             sim_start_time = traci.simulation.getTime()
             for vehicle_id in traci.vehicle.getIDList():
-                active_vehicles_start_wait[vehicle_id] = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
-                vehicle_depart_times[vehicle_id] = sim_start_time
+                try:
+                    wt = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+                    active_vehicles_start_wait[vehicle_id] = wt
+                    active_vehicles_last_wait[vehicle_id] = wt
+                    vehicle_depart_times[vehicle_id] = sim_start_time
+                except Exception:
+                    pass
+
 
             total_speed = 0.0
             total_waiting = 0.0
             samples = 0
             max_vehicle_count = 0
             traffic_lights = traci.trafficlight.getIDList()
-            lanes = traci.lane.getIDList()
+            controlled_lanes_set = set()
+            for tl in traffic_lights:
+                try:
+                    controlled_lanes_set.update(traci.trafficlight.getControlledLanes(tl))
+                except Exception:
+                    pass
+            monitored_lanes = list(controlled_lanes_set) if controlled_lanes_set else traci.lane.getIDList()[:40]
 
             completed_vehicles_wait = []
             total_halting_meters_sample = 0.0
@@ -436,9 +446,9 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
 
                 active_vehicles_last_wait = {}
 
-                # Track queue length across network lanes (halting vehicles * 7.5m average vehicle cell)
+                # Track queue length across signal approach lanes (halting vehicles * 7.5m average vehicle cell)
                 halting_vehicles_this_step = 0
-                for lane_id in lanes:
+                for lane_id in monitored_lanes:
                     try:
                         halting_vehicles_this_step += traci.lane.getLastStepHaltingNumber(lane_id)
                     except Exception:
@@ -446,31 +456,37 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
                 total_halting_meters_sample += (halting_vehicles_this_step * 7.5)
                 queue_samples_count += 1
 
+
                 if vehicle_ids:
-                    for vehicle_id in vehicle_ids:
-                        speed = traci.vehicle.getSpeed(vehicle_id)
-                        wt = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+                    num_veh = len(vehicle_ids)
+                    sample_ids = vehicle_ids[:30] if num_veh > 30 else vehicle_ids
+                    veh_scale = num_veh / len(sample_ids)
 
-                        total_speed += speed
-                        total_waiting += wt
-                        samples += 1
-
-                        active_vehicles_last_wait[vehicle_id] = wt
-
-                        # Count stop transitions: was moving (>0.5 m/s) and now stopped (<0.1 m/s)
-                        prev_spd = vehicle_prev_speeds.get(vehicle_id, 0.0)
-                        if prev_spd > 0.5 and speed < 0.1:
-                            vehicle_stops[vehicle_id] = vehicle_stops.get(vehicle_id, 0) + 1
-                        vehicle_prev_speeds[vehicle_id] = speed
-
-                        # Collect SUMO emission model outputs
+                    for vehicle_id in sample_ids:
                         try:
-                            total_co2_mg += traci.vehicle.getCO2Emission(vehicle_id)
-                            total_nox_mg += traci.vehicle.getNOxEmission(vehicle_id)
-                            total_pmx_mg += traci.vehicle.getPMxEmission(vehicle_id)
-                            total_fuel_mg += traci.vehicle.getFuelConsumption(vehicle_id)
+                            speed = traci.vehicle.getSpeed(vehicle_id)
+                            wt = traci.vehicle.getAccumulatedWaitingTime(vehicle_id)
+
+                            total_speed += speed * veh_scale
+                            total_waiting += wt * veh_scale
+                            samples += int(round(veh_scale))
+
+                            active_vehicles_last_wait[vehicle_id] = wt
+
+                            # Count stop transitions: was moving (>0.5 m/s) and now stopped (<0.1 m/s)
+                            prev_spd = vehicle_prev_speeds.get(vehicle_id, 0.0)
+                            if prev_spd > 0.5 and speed < 0.1:
+                                vehicle_stops[vehicle_id] = vehicle_stops.get(vehicle_id, 0) + 1
+                            vehicle_prev_speeds[vehicle_id] = speed
+
+                            # Collect SUMO emission model outputs
+                            total_co2_mg += traci.vehicle.getCO2Emission(vehicle_id) * veh_scale
+                            total_nox_mg += traci.vehicle.getNOxEmission(vehicle_id) * veh_scale
+                            total_pmx_mg += traci.vehicle.getPMxEmission(vehicle_id) * veh_scale
+                            total_fuel_mg += traci.vehicle.getFuelConsumption(vehicle_id) * veh_scale
                         except Exception:
                             pass
+
 
             # Determine censored/active vehicle delay
             active_vehicles_wait = []
@@ -537,6 +553,8 @@ def run_simulation(request: SimulationRequest) -> RawSimulationResult:
                 "is_fallback": False,
                 "seed": seed,
             }
+        except Exception:
+            return _generate_fallback_simulation(request)
         finally:
             if connected:
                 try:

@@ -305,5 +305,18 @@
   "flowQuestion": "Which candidate best improves traffic mobility?",
   "ecoQuestion": "Which candidate best reduces modeled transportation environmental impact?",
   "balancedQuestion": "Which candidate provides the strongest compromise between mobility, environment, and accessibility?",
-  "customQuestion": "Which candidate best satisfies user-configured municipal objective weights?"
-}
+  "customQuestion": "Which candidate best satisfies user-configured municipal objective weights?",
+  "caseStudy": "Case Study #001",
+  "caseStudyTitle": "Canonical Case Study #001",
+  "canonicalExperiment": "Canonical Experiment",
+  "fieldCalibration": "Field Calibration",
+  "importFieldCounts": "Import Field Counts",
+  "auditMode": "Audit Mode",
+  "provenance": "Provenance",
+  "confidenceInterval": "95% Student-t CI",
+  "primaryOutcomes": "Primary Mobility Outcomes",
+  "secondaryOutcomes": "Secondary Outcomes",
+  "holdoutValidation": "Holdout Validation",
+  "gehStandard": "GEH Standard (UK WebTAG)"
+}
+
