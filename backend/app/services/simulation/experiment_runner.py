@@ -18,7 +18,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.services.simulation.interventions import get_candidate_interventions
+from app.services.simulation.interventions import get_candidate_interventions, INTERVENTION_LABELS_RU, INTERVENTION_CATEGORIES_RU
 from app.services.simulation.metrics import METRIC_PROVENANCE, calculate_metrics, estimate_candidate_metrics
 from app.services.simulation.models import (
     ExperimentCondition,
@@ -211,11 +211,24 @@ def run_experiment(request: ExperimentRequest) -> ExperimentResult:
 
     intervention_map = _build_intervention_map(signal_id, phase_index)
 
+    # Legacy ID compatibility map
+    legacy_aliases = {
+        "tc_20kmh": "school_zone_slowdown_0s_safety",
+        "signal_p5": "extend_green_5s_signal_timing",
+        "signal_p10": "extend_green_10s_signal_timing",
+        "signal_m5": "reduce_green_-5s_signal_timing",
+        "bus_p8": "bus_priority_8s_transit",
+        "ped_p6": "pedestrian_priority_6s_active_mobility",
+        "park_t10": "parking_turnover_10s_curb_management",
+        "green_wave": "green_wave_coordination_0s_signal_timing",
+    }
+
     # Resolve requested intervention defs (validate IDs)
     requested_interventions: List[Tuple[str, dict]] = []
-    for iid in intervention_ids:
+    for raw_iid in intervention_ids:
+        iid = legacy_aliases.get(raw_iid, raw_iid)
         if iid not in intervention_map:
-            raise ValueError(f"Unknown intervention_id: '{iid}'. "
+            raise ValueError(f"Unknown intervention_id: '{raw_iid}'. "
                              f"Valid IDs: {sorted(intervention_map.keys())}")
         requested_interventions.append((iid, intervention_map[iid]))
 
@@ -348,7 +361,7 @@ def run_experiment(request: ExperimentRequest) -> ExperimentResult:
 
 def get_interventions_registry() -> List[dict]:
     """
-    Return the full intervention registry with evaluation modes.
+    Return the full intervention registry with evaluation modes and bilingual labels.
     Used by the frontend to populate the experiment builder.
     """
     try:
@@ -361,11 +374,18 @@ def get_interventions_registry() -> List[dict]:
     result = []
     for cand in candidates:
         cid = f"{cand.get('type')}_{cand.get('seconds', 0)}s_{cand.get('category')}"
+        label_en = cand.get("label_en") or cand.get("label", cid)
+        label_ru = cand.get("label_ru") or INTERVENTION_LABELS_RU.get(label_en, label_en)
+        cat_en = cand.get("category", "mobility")
+        cat_ru = cand.get("category_ru") or INTERVENTION_CATEGORIES_RU.get(cat_en, cat_en)
         result.append({
             "id": cid,
-            "label": cand.get("label", cid),
+            "label": label_en,
+            "label_en": label_en,
+            "label_ru": label_ru,
             "type": cand.get("type"),
-            "category": cand.get("category"),
+            "category": cat_en,
+            "category_ru": cat_ru,
             "seconds": cand.get("seconds", 0),
             "evaluation_mode": cand.get("evaluation_mode", "HEURISTIC"),
         })

@@ -1,8 +1,10 @@
 import React, { useMemo, useEffect, useRef } from 'react'
 import { useAnimatedNumber, animateHighlight, MOTION } from '../../utils/motion'
+import { safeNumber } from '../../utils/normalize'
 
 function AnimatedMetric({ value, suffix = '', decimals = 0 }) {
-  const formattedNumber = useAnimatedNumber(value, decimals, MOTION.reveal)
+  const safeVal = safeNumber(value, 0)
+  const formattedNumber = useAnimatedNumber(safeVal, decimals, MOTION.reveal)
   return (
     <strong className="metric-val">
       {formattedNumber}{suffix}
@@ -10,49 +12,56 @@ function AnimatedMetric({ value, suffix = '', decimals = 0 }) {
   )
 }
 
-export function MetricsGrid({ t, metrics, optResult }) {
+export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
   const gridRef = useRef(null)
-  const prevSpeedRef = useRef(metrics.average_speed_kmh)
+  const speed = safeNumber(metrics?.average_speed_kmh, 0)
+  const prevSpeedRef = useRef(speed)
 
   useEffect(() => {
-    if (prevSpeedRef.current !== metrics.average_speed_kmh && gridRef.current) {
-      prevSpeedRef.current = metrics.average_speed_kmh
+    if (prevSpeedRef.current !== speed && gridRef.current) {
+      prevSpeedRef.current = speed
       animateHighlight(gridRef.current, { duration: MOTION.normal })
     }
-  }, [metrics.average_speed_kmh])
+  }, [speed])
 
-  const meanWait = metrics.mean_completed_vehicle_waiting_seconds ?? metrics.average_waiting_seconds ?? 0
-  const travelTime = metrics.average_travel_time_seconds ?? (meanWait + 34.0)
-  const queueLength = metrics.mean_queue_length_meters ?? (meanWait * 1.55)
-  const stops = metrics.stops_per_vehicle ?? 1.2
-  const throughput = metrics.throughput_vehicles_per_hour ?? (metrics.max_vehicle_count ? Math.round(metrics.max_vehicle_count * 12) : 520)
-  const co2 = metrics.sumo_co2_kg ?? metrics.co2_kg ?? 0
-  const access = metrics.accessibility_score ?? 100
+  const meanWait = safeNumber(metrics?.mean_completed_vehicle_waiting_seconds ?? metrics?.average_waiting_seconds, 0)
+  const travelTime = safeNumber(metrics?.average_travel_time_seconds, meanWait + 34.0)
+  const queueLength = safeNumber(metrics?.mean_queue_length_meters, meanWait * 1.55)
+  const stops = safeNumber(metrics?.stops_per_vehicle, 1.2)
+  const throughput = safeNumber(
+    metrics?.throughput_vehicles_per_hour,
+    metrics?.max_vehicle_count ? Math.round(metrics.max_vehicle_count * 12) : 520
+  )
+  const co2 = safeNumber(metrics?.sumo_co2_kg ?? metrics?.co2_kg, 0)
+  const access = safeNumber(metrics?.accessibility_score, 100)
 
-  const optWait = optResult?.baseline?.mean_completed_vehicle_waiting_seconds ?? optResult?.baseline?.average_waiting_seconds ?? meanWait
-  const optSpeed = optResult?.baseline?.average_speed_kmh ?? metrics.average_speed_kmh
-  const optTravelTime = optResult?.baseline?.average_travel_time_seconds ?? travelTime
-  const optThroughput = optResult?.baseline?.throughput_vehicles_per_hour ?? throughput
+  const optWait = safeNumber(
+    optResult?.baseline?.mean_completed_vehicle_waiting_seconds ?? optResult?.baseline?.average_waiting_seconds,
+    meanWait
+  )
+  const optSpeed = safeNumber(optResult?.baseline?.average_speed_kmh, speed)
+  const optTravelTime = safeNumber(optResult?.baseline?.average_travel_time_seconds, travelTime)
+  const optThroughput = safeNumber(optResult?.baseline?.throughput_vehicles_per_hour, throughput)
 
-  const isSimulated = !metrics.is_fallback
+  const isSimulated = !metrics?.is_fallback
 
   return (
     <>
       <div className="panel-card metric-grid" ref={gridRef}>
         <div>
           <span>
-            {t.avgSpeed || 'Avg. speed'}
-            <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`} title={isSimulated ? (t.simulatedLabel || 'SUMO simulation') : (t.heuristicLabel || 'Calibrated fallback')}>
+            {t?.avgSpeed || 'Avg. speed'}
+            <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`} title={isSimulated ? (t?.simulatedLabel || 'SUMO simulation') : (t?.heuristicLabel || 'Calibrated fallback')}>
               {isSimulated ? 'SIMULATED' : 'FALLBACK'}
             </span>
           </span>
-          <AnimatedMetric value={metrics.average_speed_kmh} suffix=" km/h" decimals={2} />
+          <AnimatedMetric value={speed} suffix=" km/h" decimals={2} />
         </div>
 
         <div>
           <span>
-            {t.waiting || 'Delay'}
-            <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`} title={isSimulated ? (t.simulatedLabel || 'SUMO simulation') : (t.heuristicLabel || 'Calibrated fallback')}>
+            {t?.waiting || 'Delay'}
+            <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`} title={isSimulated ? (t?.simulatedLabel || 'SUMO simulation') : (t?.heuristicLabel || 'Calibrated fallback')}>
               {isSimulated ? 'SIMULATED' : 'FALLBACK'}
             </span>
           </span>
@@ -61,7 +70,7 @@ export function MetricsGrid({ t, metrics, optResult }) {
 
         <div>
           <span>
-            {t.travelTime || 'Travel Time'}
+            {t?.travelTime || 'Travel Time'}
             <span className="provenance-badge simulated" title="SUMO TraCI trip duration">
               SIMULATED
             </span>
@@ -71,7 +80,7 @@ export function MetricsGrid({ t, metrics, optResult }) {
 
         <div>
           <span>
-            {t.queueLength || 'Queue Length'}
+            {t?.queueLength || 'Queue Length'}
             <span className="provenance-badge simulated" title="SUMO halting queue length">
               SIMULATED
             </span>
@@ -81,7 +90,7 @@ export function MetricsGrid({ t, metrics, optResult }) {
 
         <div>
           <span>
-            {t.stopsPerVehicle || 'Stops / Veh'}
+            {t?.stopsPerVehicle || 'Stops / Veh'}
             <span className="provenance-badge simulated" title="TraCI vehicle velocity stop transitions">
               SIMULATED
             </span>
@@ -91,7 +100,7 @@ export function MetricsGrid({ t, metrics, optResult }) {
 
         <div>
           <span>
-            {t.throughput || 'Throughput'}
+            {t?.throughput || 'Throughput'}
             <span className="provenance-badge simulated" title="Completed trips per hour">
               SIMULATED
             </span>
@@ -111,7 +120,7 @@ export function MetricsGrid({ t, metrics, optResult }) {
 
         <div>
           <span>
-            {t.access || 'Access'}
+            {t?.access || 'Access'}
             <span className="provenance-badge estimated" title="Multi-objective accessibility formula">
               ESTIMATED
             </span>
@@ -121,12 +130,12 @@ export function MetricsGrid({ t, metrics, optResult }) {
       </div>
 
       <div className="panel-card baseline-card">
-        <h3>{t.baseline || 'Baseline'}</h3>
+        <h3>{t?.baseline || 'Baseline'}</h3>
         <div className="two-col">
-          <div><span>{t.avgSpeed || 'Avg Speed'}</span><AnimatedMetric value={optSpeed} suffix=" km/h" decimals={2} /></div>
-          <div><span>{t.waiting || 'Delay'}</span><AnimatedMetric value={optWait} suffix=" s" decimals={2} /></div>
-          <div><span>{t.travelTime || 'Travel Time'}</span><AnimatedMetric value={optTravelTime} suffix=" s" decimals={1} /></div>
-          <div><span>{t.throughput || 'Throughput'}</span><AnimatedMetric value={optThroughput} suffix=" veh/h" decimals={0} /></div>
+          <div><span>{t?.avgSpeed || 'Avg Speed'}</span><AnimatedMetric value={optSpeed} suffix=" km/h" decimals={2} /></div>
+          <div><span>{t?.waiting || 'Delay'}</span><AnimatedMetric value={optWait} suffix=" s" decimals={2} /></div>
+          <div><span>{t?.travelTime || 'Travel Time'}</span><AnimatedMetric value={optTravelTime} suffix=" s" decimals={1} /></div>
+          <div><span>{t?.throughput || 'Throughput'}</span><AnimatedMetric value={optThroughput} suffix=" veh/h" decimals={0} /></div>
         </div>
       </div>
     </>

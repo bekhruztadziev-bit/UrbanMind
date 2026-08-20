@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchInterventions, runExperiment } from '../api/client'
+import { normalizeExperimentResult } from '../utils/normalize'
 
 const TRAFFIC_LEVELS = [0.8, 1.0, 1.2, 1.4]
 const DURATION_OPTIONS = [300, 600, 900]
@@ -39,18 +40,19 @@ export function useExperiment() {
   const [registryLoading, setRegistryLoading] = useState(false)
   const [registryError, setRegistryError] = useState('')
 
-  // Execution state
-  const [status, setStatus] = useState('READY') // READY | RUNNING | COMPLETED | FAILED | PARTIALLY_COMPLETED
+  // State machine: 'IDLE' | 'CONFIGURING' | 'RUNNING' | 'COMPLETED' | 'PARTIALLY_COMPLETED' | 'FAILED' | 'ERROR' | 'FALLBACK'
+  const [status, setStatus] = useState('IDLE')
   const [experimentResult, setExperimentResult] = useState(null)
   const [displayedResult, setDisplayedResult] = useState(null)
   const [runError, setRunError] = useState('')
+  const [errorDiagnostics, setErrorDiagnostics] = useState(null)
 
   // Load intervention registry on mount
   useEffect(() => {
     setRegistryLoading(true)
     fetchInterventions()
       .then(data => {
-        setInterventionRegistry(data)
+        setInterventionRegistry(Array.isArray(data) ? data : [])
         setRegistryError('')
       })
       .catch(err => setRegistryError(err.message || 'Failed to load interventions'))
@@ -64,6 +66,7 @@ export function useExperiment() {
   const conditionBlocked = conditionCount > MAX_CONDITIONS_HARD
 
   const toggleTrafficLevel = (level) => {
+    if (status !== 'RUNNING') setStatus('CONFIGURING')
     setSelectedTrafficLevels(prev => {
       if (analysisType === 'scenario') return [level]
       return prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
@@ -71,6 +74,7 @@ export function useExperiment() {
   }
 
   const toggleIntervention = (id) => {
+    if (status !== 'RUNNING') setStatus('CONFIGURING')
     setSelectedInterventionIds(prev => {
       if (analysisType === 'scenario') return [id]
       return prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
@@ -91,32 +95,47 @@ export function useExperiment() {
     if (!canRun) return
     setStatus('RUNNING')
     setRunError('')
+    setErrorDiagnostics(null)
     setExperimentResult(null)
+    const payload = {
+      name: experimentName.trim() || (analysisType === 'scenario' ? 'Unnamed Scenario' : 'Unnamed Experiment'),
+      traffic_levels: selectedTrafficLevels,
+      intervention_ids: selectedInterventionIds,
+      duration,
+      warmup_steps: warmupSteps,
+      measurement_steps: measurementSteps,
+      simulation_profile: simulationProfile,
+    }
+
     try {
-      const result = await runExperiment({
-        name: experimentName.trim() || (analysisType === 'scenario' ? 'Unnamed Scenario' : 'Unnamed Experiment'),
-        traffic_levels: selectedTrafficLevels,
-        intervention_ids: selectedInterventionIds,
-        duration,
-        warmup_steps: warmupSteps,
-        measurement_steps: measurementSteps,
-        simulation_profile: simulationProfile,
-      })
-      setExperimentResult(result)
-      const s = result?.summary?.status
+      const rawResult = await runExperiment(payload)
+      const normalized = normalizeExperimentResult(rawResult)
+      setExperimentResult(normalized)
+      setDisplayedResult(normalized)
+      
+      const s = normalized?.summary?.status
       if (s === 'COMPLETED') setStatus('COMPLETED')
       else if (s === 'PARTIALLY_COMPLETED') setStatus('PARTIALLY_COMPLETED')
       else setStatus('FAILED')
     } catch (err) {
-      setRunError(err.message || 'Simulation failed')
-      setStatus('FAILED')
+      const errMsg = err.message || 'Simulation execution failed'
+      setRunError(errMsg)
+      setErrorDiagnostics({
+        endpoint: '/api/experiments/run',
+        payload,
+        error: errMsg,
+        timestamp: new Date().toISOString(),
+      })
+      setStatus('ERROR')
     }
   }
 
   const reset = () => {
-    setStatus('READY')
+    setStatus('IDLE')
     setExperimentResult(null)
+    setDisplayedResult(null)
     setRunError('')
+    setErrorDiagnostics(null)
   }
 
   return {
@@ -134,7 +153,8 @@ export function useExperiment() {
     // Matrix preview
     conditionCount, conditionWarning, conditionBlocked,
     // Execution
-    status, experimentResult, displayedResult, setDisplayedResult, runError,
+    status, setStatus, experimentResult, displayedResult, setDisplayedResult,
+    runError, errorDiagnostics,
     canRun,
     runExperimentNow,
     reset,

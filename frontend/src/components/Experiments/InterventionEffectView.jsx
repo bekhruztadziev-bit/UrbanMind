@@ -1,35 +1,39 @@
 import React, { useState } from 'react'
+import { safeNumber, formatSafeNumber, INTERVENTION_LABELS_RU } from '../../utils/normalize'
 
 const EVAL_BADGE = {
   SIMULATED: { label: 'SIMULATED', className: 'provenance-badge simulated' },
   HEURISTIC: { label: 'ESTIMATED', className: 'provenance-badge estimated' },
 }
 
-export function InterventionEffectView({ result, t }) {
+export function InterventionEffectView({ result, t = {} }) {
   const [focusMetric, setFocusMetric] = useState('mean_completed_vehicle_waiting_seconds')
 
-  if (!result || !result.conditions || result.conditions.length === 0) {
+  if (!result || !result.conditions || !Array.isArray(result.conditions) || result.conditions.length === 0) {
     return <div className="panel-card empty-state"><p>{t?.noData || 'No data.'}</p></div>
   }
 
-  const trafficLevels = [...new Set(result.conditions.map(c => c.traffic_multiplier))].sort((a, b) => a - b)
+  const trafficLevels = [...new Set(result.conditions.map(c => c?.traffic_multiplier).filter(v => v != null))].sort((a, b) => a - b)
 
   // Gather unique interventions
   const interventions = []
   const seen = new Set()
   for (const cond of result.conditions) {
-    if (!cond.intervention_id || seen.has(cond.intervention_id)) continue
+    if (!cond || !cond.intervention_id || seen.has(cond.intervention_id)) continue
     seen.add(cond.intervention_id)
+    const rawLabel = cond.intervention_label || cond.intervention_id
     interventions.push({
       id: cond.intervention_id,
-      label: cond.intervention_label,
-      evaluation_mode: cond.evaluation_mode,
+      label: cond.intervention_label_ru || INTERVENTION_LABELS_RU[rawLabel] || rawLabel,
+      evaluation_mode: cond.evaluation_mode || 'HEURISTIC',
     })
   }
 
   const condIndex = {}
   for (const cond of result.conditions) {
-    condIndex[`${cond.traffic_multiplier}|${cond.intervention_id}`] = cond
+    if (cond) {
+      condIndex[`${cond.traffic_multiplier}|${cond.intervention_id}`] = cond
+    }
   }
 
   const METRIC_LABELS = {
@@ -73,28 +77,28 @@ export function InterventionEffectView({ result, t }) {
                   {badge.label}
                 </span>
               </div>
-              <div style={{ display: 'grid', gap: '0.3rem' }}>
+              <div style={{ display: 'grid', gap: '0.35rem' }}>
                 {trafficLevels.map(tl => {
                   const cond = condIndex[`${tl}|${iv.id}`]
                   const pct = cond?.metric_deltas?.[focusMetric]?.percentage
                   const abs = cond?.metric_deltas?.[focusMetric]?.absolute
                   const isHigherWorse = higherWorse.includes(focusMetric)
                   const improved = abs != null ? (isHigherWorse ? abs < 0 : abs > 0) : null
-                  const barColor = improved === true ? '#10b981' : improved === false ? '#ef4444' : '#94a3b8'
-                  const pctWidth = pct != null ? Math.min(Math.abs(pct), 50) * 2 : 0 // max 100% visual
+                  const barColor = improved === true ? '#34d399' : improved === false ? '#f87171' : 'var(--text-muted)'
+                  const pctWidth = pct != null && !isNaN(pct) ? Math.min(Math.abs(Number(pct)), 50) * 2 : 0
 
                   return (
                     <div key={tl} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
-                      <span style={{ width: '2.8rem', color: '#475569', flexShrink: 0 }}>{tl}×</span>
+                      <span style={{ width: '2.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{tl}×</span>
                       {cond?.status !== 'COMPLETED' ? (
-                        <span style={{ color: '#94a3b8' }}>—</span>
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
                       ) : (
                         <>
-                          <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
                             <div style={{ width: `${pctWidth}%`, height: '100%', background: barColor, borderRadius: '3px', transition: 'width 0.3s' }} />
                           </div>
-                          <span style={{ width: '4rem', textAlign: 'right', color: barColor, fontWeight: 600 }}>
-                            {pct != null ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%` : 'N/A'}
+                          <span style={{ width: '4.5rem', textAlign: 'right', color: barColor, fontWeight: 600 }}>
+                            {pct != null && !isNaN(pct) ? `${pct > 0 ? '+' : ''}${Number(pct).toFixed(1)}%` : 'N/A'}
                           </span>
                         </>
                       )}
@@ -106,7 +110,7 @@ export function InterventionEffectView({ result, t }) {
           )
         })}
       </div>
-      <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.75rem' }}>
+      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
         % change vs same-demand control. Green = improved, red = worse. Heuristic values are formula estimates, not direct measurements.
       </p>
     </div>

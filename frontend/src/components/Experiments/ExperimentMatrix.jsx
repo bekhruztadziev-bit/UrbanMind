@@ -1,9 +1,14 @@
 import React, { useState } from 'react'
+import { safeNumber, formatSafeNumber } from '../../utils/normalize'
 
 const METRICS = [
   { key: 'mean_completed_vehicle_waiting_seconds', label: 'Completed-Trip Mean Delay (s)', higherWorse: true },
   { key: 'mean_active_vehicle_waiting_seconds', label: 'Active-Vehicle Mean Delay (s)', higherWorse: true },
   { key: 'average_waiting_seconds', label: 'Step-weighted observed waiting (s)', higherWorse: true },
+  { key: 'average_travel_time_seconds', label: 'Travel Time (s)', higherWorse: true },
+  { key: 'stops_per_vehicle', label: 'Stops / Vehicle', higherWorse: true },
+  { key: 'mean_queue_length_meters', label: 'Queue Length (m)', higherWorse: true },
+  { key: 'throughput_vehicles_per_hour', label: 'Throughput (veh/h)', higherWorse: false },
   { key: 'average_speed_kmh', label: 'Avg Speed (km/h)', higherWorse: false },
   { key: 'max_vehicle_count', label: 'Peak Vehicles', higherWorse: true },
   { key: 'sumo_co2_kg', label: 'CO₂ (kg)', higherWorse: true },
@@ -21,35 +26,38 @@ const EVAL_BADGE = {
 }
 
 function cellStyle(delta, higherWorse) {
-  if (delta == null) return {}
-  const improved = higherWorse ? delta < 0 : delta > 0
-  const worsened = higherWorse ? delta > 0 : delta < 0
-  if (improved) return { background: 'rgba(16,185,129,0.12)', color: '#065f46' }
-  if (worsened) return { background: 'rgba(239,68,68,0.10)', color: '#991b1b' }
+  if (delta == null || isNaN(delta)) return {}
+  const numDelta = Number(delta)
+  if (isNaN(numDelta)) return {}
+  const improved = higherWorse ? numDelta < 0 : numDelta > 0
+  const worsened = higherWorse ? numDelta > 0 : numDelta < 0
+  if (improved) return { background: 'rgba(16,185,129,0.15)', color: '#34d399' }
+  if (worsened) return { background: 'rgba(239,68,68,0.15)', color: '#f87171' }
   return {}
 }
 
-export function ExperimentMatrix({ result }) {
+export function ExperimentMatrix({ result, t = {} }) {
   const [selectedMetric, setSelectedMetric] = useState('mean_completed_vehicle_waiting_seconds')
 
-  if (!result || !result.conditions || result.conditions.length === 0) {
-    return <div className="panel-card empty-state"><p>{t.noData || 'No conditions to display.'}</p></div>
+  if (!result || !result.conditions || !Array.isArray(result.conditions) || result.conditions.length === 0) {
+    return <div className="panel-card empty-state"><p>{t?.noData || 'No conditions to display.'}</p></div>
   }
 
   const metricDef = METRICS.find(m => m.key === selectedMetric) || METRICS[0]
-  const trafficLevels = [...new Set(result.conditions.map(c => c.traffic_multiplier))].sort((a, b) => a - b)
+  const trafficLevels = [...new Set(result.conditions.map(c => c?.traffic_multiplier).filter(v => v != null))].sort((a, b) => a - b)
 
   // Build intervention rows: unique intervention labels in order they appear
   const interventionRows = []
   const seen = new Set()
   for (const cond of result.conditions) {
+    if (!cond) continue
     const key = cond.intervention_id || '__control__'
     if (!seen.has(key)) {
       seen.add(key)
       interventionRows.push({
         id: cond.intervention_id,
-        label: cond.intervention_label,
-        evaluation_mode: cond.evaluation_mode,
+        label: cond.intervention_label_ru || cond.intervention_label || (cond.intervention_id ? cond.intervention_id : 'Intervention'),
+        evaluation_mode: cond.evaluation_mode || 'HEURISTIC',
       })
     }
   }
@@ -57,6 +65,7 @@ export function ExperimentMatrix({ result }) {
   // Index conditions by (traffic_multiplier, intervention_id)
   const condIndex = {}
   for (const cond of result.conditions) {
+    if (!cond) continue
     const key = `${cond.traffic_multiplier}|${cond.intervention_id}`
     condIndex[key] = cond
   }
@@ -64,11 +73,11 @@ export function ExperimentMatrix({ result }) {
   return (
     <div className="panel-card full-width-card">
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-        <h3 style={{ margin: 0 }}>{t.resultsMatrix || 'Results Matrix'}</h3>
+        <h3 style={{ margin: 0 }}>{t?.resultsMatrix || 'Results Matrix'}</h3>
         <select
           value={selectedMetric}
           onChange={e => setSelectedMetric(e.target.value)}
-          style={{ fontSize: '0.85rem', padding: '0.35rem 0.6rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+          style={{ fontSize: '0.85rem', padding: '0.35rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
         >
           {METRICS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
         </select>
@@ -78,10 +87,10 @@ export function ExperimentMatrix({ result }) {
         <table style={{ fontSize: '0.83rem', borderCollapse: 'collapse', width: '100%' }}>
           <thead>
             <tr>
-              <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem', borderBottom: '2px solid #e2e8f0' }}>{t.interventionHeader || 'Intervention'}</th>
-              <th style={{ textAlign: 'center', padding: '0.5rem 0.7rem', borderBottom: '2px solid #e2e8f0', fontSize: '0.72rem', color: '#64748b' }}>{t.typeHeader || 'Type'}</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem 0.7rem', borderBottom: '2px solid rgba(255,255,255,0.1)' }}>{t?.interventionHeader || 'Intervention'}</th>
+              <th style={{ textAlign: 'center', padding: '0.5rem 0.7rem', borderBottom: '2px solid rgba(255,255,255,0.1)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t?.typeHeader || 'Type'}</th>
               {trafficLevels.map(tl => (
-                <th key={tl} style={{ textAlign: 'center', padding: '0.5rem 0.7rem', borderBottom: '2px solid #e2e8f0' }}>
+                <th key={tl} style={{ textAlign: 'center', padding: '0.5rem 0.7rem', borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
                   {tl}×
                 </th>
               ))}
@@ -89,16 +98,15 @@ export function ExperimentMatrix({ result }) {
           </thead>
           <tbody>
             {/* Control row */}
-            <tr style={{ background: 'rgba(248,250,252,0.8)' }}>
-              <td style={{ padding: '0.5rem 0.7rem', fontWeight: 700, color: '#0f172a' }}>{t.controlNoIntervention || 'Control (no intervention)'}</td>
+            <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <td style={{ padding: '0.5rem 0.7rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t?.controlNoIntervention || 'Control (no intervention)'}</td>
               <td style={{ textAlign: 'center', padding: '0.5rem 0.7rem' }}>—</td>
               {trafficLevels.map(tl => {
-                // Find first condition at this traffic level to get control metrics
-                const cond = result.conditions.find(c => c.traffic_multiplier === tl && c.control_metrics)
+                const cond = result.conditions.find(c => c?.traffic_multiplier === tl && c?.control_metrics)
                 const val = cond?.control_metrics?.[selectedMetric]
                 return (
                   <td key={tl} style={{ textAlign: 'center', padding: '0.5rem 0.7rem', fontWeight: 600 }}>
-                    {val != null ? Number(val).toFixed(1) : '—'}
+                    {formatSafeNumber(val, 1)}
                   </td>
                 )
               })}
@@ -109,7 +117,7 @@ export function ExperimentMatrix({ result }) {
               const badge = EVAL_BADGE[row.evaluation_mode] || EVAL_BADGE.HEURISTIC
               return (
                 <tr key={row.id || 'none'}>
-                  <td style={{ padding: '0.5rem 0.7rem', color: '#1f2937' }}>{row.label}</td>
+                  <td style={{ padding: '0.5rem 0.7rem', color: 'var(--text-primary)' }}>{row.label}</td>
                   <td style={{ textAlign: 'center', padding: '0.5rem 0.7rem' }}>
                     <span className={badge.className} style={{ display: 'inline-block' }}>
                       {badge.label}
@@ -119,7 +127,7 @@ export function ExperimentMatrix({ result }) {
                     const cond = condIndex[`${tl}|${row.id}`]
                     if (!cond || cond.status !== 'COMPLETED') {
                       return (
-                        <td key={tl} style={{ textAlign: 'center', padding: '0.5rem 0.7rem', color: '#94a3b8' }}>
+                        <td key={tl} style={{ textAlign: 'center', padding: '0.5rem 0.7rem', color: 'var(--text-muted)' }}>
                           {cond?.status === 'FAILED' ? '✗' : '—'}
                         </td>
                       )
@@ -130,10 +138,10 @@ export function ExperimentMatrix({ result }) {
                     const pct = cond.metric_deltas?.[selectedMetric]?.percentage
                     return (
                       <td key={tl} style={{ textAlign: 'center', padding: '0.5rem 0.7rem', ...style }}>
-                        <div style={{ fontWeight: 600 }}>{val != null ? Number(val).toFixed(1) : '—'}</div>
-                        {pct != null && (
+                        <div style={{ fontWeight: 600 }}>{formatSafeNumber(val, 1)}</div>
+                        {pct != null && !isNaN(pct) && (
                           <div style={{ fontSize: '0.7rem', opacity: 0.85 }}>
-                            {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
+                            {pct > 0 ? '+' : ''}{safeNumber(pct, 0).toFixed(1)}%
                           </div>
                         )}
                       </td>
@@ -145,7 +153,7 @@ export function ExperimentMatrix({ result }) {
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.5rem' }}>
+      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
         % shown vs same-demand control. Green = improved, red = worse. Heuristic values are formula-based estimates.
       </p>
     </div>

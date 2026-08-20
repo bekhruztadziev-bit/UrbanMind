@@ -204,5 +204,16 @@
   "tradeoffsAnalysis": "Анализ компромиссов (Trade-offs)",
   "whatImproved": "Улучшено",
   "tradeoffsList": "Компромиссы",
-  "statisticalRobustness": "Статистическая устойчивость"
+  "statisticalRobustness": "Статистическая устойчивость",
+  "aiAnalysisTab": "ИИ-Интерпретация",
+  "aiSummary": "Ключевые выводы",
+  "keyImprovements": "Что улучшилось",
+  "whatToWatch": "На что обратить внимание",
+  "analyzingResults": "Анализ результатов симуляции с помощью Gemini AI…",
+  "runAIAnalysis": "Запустить ИИ-анализ",
+  "readyForAI": "Оптимизация завершена. Запустите глубокий ИИ-анализ транспортных компромиссов.",
+  "refreshAI": "Пересчитать ИИ-анализ",
+  "retryAI": "Повторить попытку",
+  "optimized": "Оптимизировано",
+  "effect": "Эффект (Δ)"
 }

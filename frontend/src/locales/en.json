@@ -204,5 +204,16 @@
   "tradeoffsAnalysis": "Multi-Objective Trade-off Analysis",
   "whatImproved": "Improved",
   "tradeoffsList": "Trade-offs",
-  "statisticalRobustness": "Statistical Robustness"
+  "statisticalRobustness": "Statistical Robustness",
+  "aiAnalysisTab": "AI Interpretation",
+  "aiSummary": "AI Interpretation & Summary",
+  "keyImprovements": "Key Improvements",
+  "whatToWatch": "What to Watch & Monitor",
+  "analyzingResults": "Analyzing simulation results with Gemini AI…",
+  "runAIAnalysis": "Run AI Analysis",
+  "readyForAI": "Optimization complete. Request deep AI operational reasoning on trade-offs.",
+  "refreshAI": "Re-evaluate with AI",
+  "retryAI": "Retry AI Analysis",
+  "optimized": "Optimized",
+  "effect": "Effect (Δ)"
 }

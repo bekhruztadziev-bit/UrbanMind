@@ -39,12 +39,19 @@ def analyze_tradeoffs(delta: CandidateDelta, language: str = "en") -> TradeoffSu
 
         if pct is not None:
             val_pct = float(pct)
+            item_data = {
+                "name": name,
+                "name_en": m["name_en"],
+                "name_ru": m["name_ru"],
+                "change_pct": val_pct,
+                "metric": m["key"],
+            }
             if val_pct > 2.0:
-                improved.append({"name": name, "change_pct": val_pct, "metric": m["key"]})
+                improved.append(item_data)
             elif val_pct < -2.0:
-                worsened.append({"name": name, "change_pct": val_pct, "metric": m["key"]})
+                worsened.append(item_data)
             else:
-                unchanged.append({"name": name, "change_pct": val_pct, "metric": m["key"]})
+                unchanged.append(item_data)
 
     if len(improved) >= 3 and len(worsened) == 0:
         verdict_en = "Uniform corridor improvement across all operational and environmental dimensions."
@@ -122,8 +129,11 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
         category = entry.get("category", "mobility")
         action_text = entry.get("label", entry.get("type", "unknown").replace("_", " ").title())
         wait_change = abs(delta["average_waiting_seconds"])
-        summary = get_intervention_effect_summary(category, action_text, wait_change, language=language)
-        label_display = INTERVENTION_LABELS_RU.get(action_text, action_text) if language == "ru" else action_text
+        summary_en = get_intervention_effect_summary(category, action_text, wait_change, language="en")
+        summary_ru = get_intervention_effect_summary(category, action_text, wait_change, language="ru")
+        summary = summary_ru if language == "ru" else summary_en
+        label_ru = INTERVENTION_LABELS_RU.get(action_text, action_text)
+        label_display = label_ru if language == "ru" else action_text
 
         clean_intervention = {
             "type": entry.get("type"),
@@ -141,12 +151,15 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
             "id": f"{entry.get('type')}_{entry.get('seconds', 0)}s_{category}",
             "label": label_display,
             "label_en": action_text,
-            "label_ru": INTERVENTION_LABELS_RU.get(action_text, action_text),
+            "label_ru": label_ru,
             "category": category,
             "category_label": INTERVENTION_CATEGORIES_RU.get(category, category) if language == "ru" else category,
+            "category_ru": INTERVENTION_CATEGORIES_RU.get(category, category),
             "type": entry.get("type", ""),
             "description": summary,
             "summary": summary,
+            "summary_en": summary_en,
+            "summary_ru": summary_ru,
             "evaluation_mode": entry.get("evaluation_mode", "HEURISTIC"),
             "intervention": clean_intervention,
             "metrics": metrics,
@@ -174,6 +187,7 @@ def rank_candidates(scenario: str, baseline: SimulationMetrics, candidates: List
 
     best["selected_reason"] = reason_ru if language == "ru" else reason_en
     best["selected_reason_ru"] = reason_ru
+    best["selected_reason_en"] = reason_en
 
     return {
         "scenario": scenario,

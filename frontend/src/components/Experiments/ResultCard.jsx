@@ -5,6 +5,12 @@ const EVAL_BADGE = {
   HEURISTIC: { label: 'Heuristic', color: '#b45309', bg: 'rgba(180,83,9,0.12)' },
 }
 
+function formatVal(val, decimals = 1) {
+  if (val == null || isNaN(val)) return '—'
+  const num = Number(val)
+  return isNaN(num) ? '—' : num.toFixed(decimals)
+}
+
 export function ResultCard({
   interventionName,
   simulationProfile,
@@ -16,15 +22,15 @@ export function ResultCard({
   metricLabel = 'Observed Wait (s)',
 }) {
   const badge = EVAL_BADGE[evaluationMode] || EVAL_BADGE.HEURISTIC
-  const improved = delta < 0
-  const worsened = delta > 0
+  const improved = delta != null && !isNaN(delta) && delta < 0
+  const worsened = delta != null && !isNaN(delta) && delta > 0
 
   return (
-    <div className="panel-card" style={{ padding: '1rem', borderLeft: `4px solid ${improved ? '#10b981' : worsened ? '#ef4444' : '#cbd5e1'}` }}>
+    <div className="panel-card" style={{ padding: '1rem', borderLeft: `4px solid ${improved ? '#10b981' : worsened ? '#ef4444' : 'var(--border-color)'}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', color: '#0f172a' }}>{interventionName}</h4>
-          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+          <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '1rem', color: 'var(--text-primary)' }}>{interventionName || 'Intervention'}</h4>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
             Profile: {simulationProfile || 'Custom'}
           </div>
         </div>
@@ -35,21 +41,21 @@ export function ResultCard({
 
       <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem' }}>
         <div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Control</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#334155' }}>{controlValue.toFixed(1)}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Control</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{formatVal(controlValue)}</div>
         </div>
         <div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Result</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a' }}>{resultValue.toFixed(1)}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Result</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{formatVal(resultValue)}</div>
         </div>
         <div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impact</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: improved ? '#059669' : worsened ? '#dc2626' : '#64748b' }}>
-            {percentage > 0 ? '+' : ''}{percentage.toFixed(1)}%
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impact</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: improved ? '#059669' : worsened ? '#dc2626' : 'var(--text-muted)' }}>
+            {percentage != null && !isNaN(percentage) ? `${percentage > 0 ? '+' : ''}${Number(percentage).toFixed(1)}%` : '—'}
           </div>
         </div>
       </div>
-      <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.75rem' }}>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
         Metric: {metricLabel}
       </div>
     </div>
