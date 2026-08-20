@@ -64,7 +64,44 @@ UrbanMind evaluates interventions across multiple competing urban dimensions:
 
 ---
 
-## 5. Distinction: Simulation Models vs. Physical Sensor Telemetry
+## 5. Policy Optimization Engine & Mathematical Normalization
+
+Rather than treating a single universal metric as "best", UrbanMind utilizes a first-class **Optimization Policy Engine** to evaluate candidate interventions under explicit municipal policy objectives:
+
+### Policy Profiles
+1. **`FLOW` (Mobility Priority)**:
+   - Weights: $\mathbf{w} = [w_{\text{mob}}=0.80, w_{\text{env}}=0.10, w_{\text{acc}}=0.10]$
+   - Objective: Minimize corridor delays, travel times, stops, and queues; maximize throughput.
+2. **`ECO` (Environmental Priority)**:
+   - Weights: $\mathbf{w} = [w_{\text{mob}}=0.15, w_{\text{env}}=0.75, w_{\text{acc}}=0.10]$
+   - Objective: Minimize simulated $\text{CO}_2$, $\text{NO}_x$, noise, and fuel consumption.
+3. **`BALANCED` (Holistic Multi-Objective)**:
+   - Weights: $\mathbf{w} = [w_{\text{mob}}=0.45, w_{\text{env}}=0.35, w_{\text{acc}}=0.20]$
+   - Objective: Multi-objective compromise across corridor progression, emission abatement, and pedestrian accessibility.
+4. **`CUSTOM` (Configurable Municipal Weights)**:
+   - User-defined non-negative weights $w_{\text{mob}}, w_{\text{env}}, w_{\text{acc}}$ normalized such that $\sum w_i = 1.0$.
+
+### Baseline-Relative Percentage Normalization
+To prevent unit mismatch (combining seconds, kilograms, vehicles/hour, decibels), all raw metrics are converted into dimensionless relative improvement percentages:
+
+* For **"Lower is better"** metrics ($m \in \{\text{delay}, \text{travel\_time}, \text{queue}, \text{stops}, \text{CO}_2, \text{NO}_x, \text{noise}, \text{ped\_delay}\}$):
+  $$R_m = \frac{x_{m,\text{base}} - x_m}{x_{m,\text{base}}} \times 100$$
+* For **"Higher is better"** metrics ($m \in \{\text{speed}, \text{throughput}, \text{accessibility}\}$):
+  $$R_m = \frac{x_m - x_{m,\text{base}}}{x_{m,\text{base}}} \times 100$$
+
+### Component & Overall Policy Scoring
+Component scores represent arithmetic averages of normalized improvements in each category:
+$$S_{\text{mobility}} = \frac{1}{|M_{\text{mob}}|}\sum_{m \in M_{\text{mob}}} R_m, \quad S_{\text{env}} = \frac{1}{|M_{\text{env}}|}\sum_{m \in M_{\text{env}}} R_m, \quad S_{\text{acc}} = \frac{1}{|M_{\text{acc}}|}\sum_{m \in M_{\text{acc}}} R_m$$
+
+The overall policy composite score is:
+$$S_{\text{policy}} = w_{\text{mob}} \cdot S_{\text{mob}} + w_{\text{env}} \cdot S_{\text{env}} + w_{\text{acc}} \cdot S_{\text{acc}}$$
+
+### Constraint Enforcement
+Candidates violating hard constraints (e.g., maximum allowable delay increase $> 20\%$) are marked as `is_valid = False` and receive a heavy ranking penalty ($-1000.0$) to guarantee they are never recommended over compliant strategies.
+
+---
+
+## 6. Distinction: Simulation Models vs. Physical Sensor Telemetry
 
 > [!IMPORTANT]
 > **Scientific Modeling Notice**:
@@ -74,7 +111,7 @@ UrbanMind evaluates interventions across multiple competing urban dimensions:
 
 ---
 
-## 6. Developer & Execution Guide
+## 7. Developer & Execution Guide
 
 ### Installation & Run Commands
 
@@ -102,5 +139,6 @@ npm run dev -- --host 0.0.0.0 --port 5173
 #### 3. Automated Test Suite
 ```powershell
 cd backend
-.\.venv\Scripts\pytest.exe test_simulation.py test_green_wave_validation.py test_experiment.py -v
+.\.venv\Scripts\pytest.exe test_policy_engine.py test_simulation.py test_green_wave_validation.py test_experiment.py test_ai_service.py -v
 ```
+

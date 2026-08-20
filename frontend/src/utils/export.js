@@ -1,3 +1,5 @@
+import { exportReportCsvApi, exportReportHtmlApi } from '../api/client'
+
 export function exportToJson(scenarios) {
   const dataStr = JSON.stringify(scenarios, null, 2)
   const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
@@ -163,4 +165,84 @@ export function exportExperimentToCsv(experiment) {
   const csvContent = [headers.join(','), ...rows].join('\n')
   const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent)
   triggerDownload(dataUri, `urbanmind-experiment-${experiment.experiment_id || Date.now()}.csv`)
+}
+
+/**
+ * Export a DecisionReport object to JSON.
+ */
+export function exportDecisionReportToJson(report) {
+  if (!report) return
+  const dataStr = JSON.stringify(report, null, 2)
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
+  triggerDownload(dataUri, `urbanmind-decision-report-${report.report_id || Date.now()}.json`)
+}
+
+/**
+ * Export a DecisionReport object to CSV via the backend exporter API or local CSV construction.
+ */
+export async function exportDecisionReportToCsv(report) {
+  if (!report) return
+  try {
+    const res = await exportReportCsvApi({ report })
+    if (res?.csv) {
+      const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(res.csv)
+      triggerDownload(dataUri, res.filename || `urbanmind-decision-report-${report.report_id || Date.now()}.csv`)
+      return
+    }
+  } catch (err) {
+    console.warn('Backend CSV export failed, falling back to local exporter:', err)
+  }
+
+  // Local fallback CSV export
+  const lines = [
+    `URBANMIND DECISION REPORT,${report.report_id || ''}`,
+    `Created At,${report.created_at || ''}`,
+    `Scenario,${report.scenario_id || ''}`,
+    `Policy,${(report.policy_id || '').toUpperCase()}`,
+    '',
+    'EXECUTIVE SUMMARY',
+    `Recommended Intervention,"${report.executive_summary?.recommended_intervention || ''}"`,
+    `Primary Impact,"${report.executive_summary?.primary_result || ''}"`,
+    `Environmental Impact,"${report.executive_summary?.environmental_result || ''}"`,
+    `Confidence,${report.executive_summary?.confidence || ''}`,
+    `Recommendation,"${report.executive_summary?.recommendation || ''}"`,
+    '',
+    'METRIC COMPARISON',
+    'Metric,Baseline,Optimized,Absolute Change,Percentage Change (%),Direction,Is Improvement,Provenance',
+  ]
+
+  report.metric_comparison?.forEach(r => {
+    lines.push(`"${r.name_en}",${r.baseline},${r.optimized},${r.absolute_change},${r.percentage_change}%,${r.direction},${r.is_improvement ? 'YES' : 'NO'},${r.provenance}`)
+  })
+
+  const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(lines.join('\n'))
+  triggerDownload(dataUri, `urbanmind-decision-report-${report.report_id || Date.now()}.csv`)
+}
+
+/**
+ * Export a DecisionReport as a printable PDF / clean formatted HTML window.
+ */
+export async function exportDecisionReportToPdf(report, language = 'en') {
+  if (!report) return
+  try {
+    const res = await exportReportHtmlApi({ report, language })
+    const htmlContent = res?.html
+    if (htmlContent) {
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.open()
+        printWindow.document.write(htmlContent)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => {
+          printWindow.print()
+        }, 500)
+        return
+      }
+      const dataUri = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent)
+      triggerDownload(dataUri, res.filename || `urbanmind-decision-report-${report.report_id || Date.now()}.html`)
+    }
+  } catch (err) {
+    console.error('Failed to export decision report PDF:', err)
+  }
 }

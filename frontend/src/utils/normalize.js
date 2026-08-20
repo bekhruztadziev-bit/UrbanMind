@@ -277,6 +277,63 @@ export function normalizeTradeoffSummary(tradeoff = {}) {
   }
 }
 
+export function normalizePolicyBreakdown(pb = {}) {
+  if (!pb || typeof pb !== 'object') return null
+  return {
+    policy_id: String(pb.policy_id || 'balanced'),
+    policy_name: String(pb.policy_name || 'BALANCED'),
+    policy_name_ru: String(pb.policy_name_ru || 'БАЛАНС'),
+    overall_score: safeNumber(pb.overall_score, 0),
+    ranking_score: safeNumber(pb.ranking_score, 0),
+    mobility_score: safeNumber(pb.mobility_score, 0),
+    environment_score: safeNumber(pb.environment_score, 0),
+    accessibility_score: safeNumber(pb.accessibility_score, 0),
+    weights: pb.weights && typeof pb.weights === 'object' ? pb.weights : { mobility: 0.45, environment: 0.35, accessibility: 0.20 },
+    is_valid: Boolean(pb.is_valid !== false),
+    constraint_violations_en: Array.isArray(pb.constraint_violations_en) ? pb.constraint_violations_en.map(String) : [],
+    constraint_violations_ru: Array.isArray(pb.constraint_violations_ru) ? pb.constraint_violations_ru.map(String) : [],
+    metric_deltas: pb.metric_deltas && typeof pb.metric_deltas === 'object' ? pb.metric_deltas : {},
+  }
+}
+
+export function normalizePolicyComparison(pc = {}) {
+  if (!pc || typeof pc !== 'object') return null
+  const result = {}
+  for (const [key, item] of Object.entries(pc)) {
+    if (item && typeof item === 'object') {
+      result[key] = {
+        policy_id: String(item.policy_id || key),
+        policy_name: String(item.policy_name || key.toUpperCase()),
+        policy_name_ru: String(item.policy_name_ru || key.toUpperCase()),
+        icon: String(item.icon || '🎯'),
+        objective_question: String(item.objective_question || ''),
+        objective_question_ru: String(item.objective_question_ru || ''),
+        why_won: String(item.why_won || ''),
+        why_won_en: String(item.why_won_en || item.why_won || ''),
+        why_won_ru: String(item.why_won_ru || item.why_won || ''),
+        best_candidate_id: String(item.best_candidate_id || ''),
+        best_candidate_label: String(item.best_candidate_label || item.best_candidate_id || ''),
+        best_candidate_score: safeNumber(item.best_candidate_score, 0),
+        overall_score: safeNumber(item.overall_score, 0),
+        mobility_score: safeNumber(item.mobility_score, 0),
+        environment_score: safeNumber(item.environment_score, 0),
+        accessibility_score: safeNumber(item.accessibility_score, 0),
+        average_waiting_seconds: safeNumber(item.average_waiting_seconds, 0),
+        average_travel_time_seconds: safeNumber(item.average_travel_time_seconds, 0),
+        co2_kg: safeNumber(item.co2_kg, 0),
+        throughput_vehicles_per_hour: safeNumber(item.throughput_vehicles_per_hour, 0),
+        stops_per_vehicle: safeNumber(item.stops_per_vehicle, 0),
+        delay_improvement_pct: safeNumber(item.delay_improvement_pct, 0),
+        emissions_improvement_pct: safeNumber(item.emissions_improvement_pct, 0),
+        throughput_improvement_pct: safeNumber(item.throughput_improvement_pct, 0),
+        stops_improvement_pct: safeNumber(item.stops_improvement_pct, 0),
+        tradeoffs: normalizeTradeoffSummary(item.tradeoffs),
+      }
+    }
+  }
+  return result
+}
+
 export function normalizeCandidate(cand = {}) {
   if (!cand || typeof cand !== 'object') return null
 
@@ -306,12 +363,17 @@ export function normalizeCandidate(cand = {}) {
     selected_reason: String(cand.selected_reason || ''),
     selected_reason_ru: String(cand.selected_reason_ru || ''),
     selected_reason_en: String(cand.selected_reason_en || cand.selected_reason || ''),
+    why_won: String(cand.why_won || cand.selected_reason || ''),
+    why_won_ru: String(cand.why_won_ru || cand.selected_reason_ru || ''),
+    why_won_en: String(cand.why_won_en || cand.selected_reason_en || ''),
     intervention: cand.intervention && typeof cand.intervention === 'object' ? cand.intervention : {},
     metrics: normalizeMetrics(cand.metrics),
     delta: normalizeCandidateDelta(cand.delta),
     tradeoff_summary: normalizeTradeoffSummary(cand.tradeoff_summary),
+    policy_breakdown: normalizePolicyBreakdown(cand.policy_breakdown),
   }
 }
+
 
 export function normalizeOptimizationResult(opt = {}) {
   if (!opt || typeof opt !== 'object') return null
@@ -324,6 +386,9 @@ export function normalizeOptimizationResult(opt = {}) {
 
   return {
     scenario: String(opt.scenario || 'midday'),
+    policy: String(opt.policy || 'balanced'),
+    policy_definition: opt.policy_definition && typeof opt.policy_definition === 'object' ? opt.policy_definition : null,
+    policy_comparison: normalizePolicyComparison(opt.policy_comparison),
     baseline: normalizeMetrics(opt.baseline),
     candidates,
     ranked_candidates: ranked,

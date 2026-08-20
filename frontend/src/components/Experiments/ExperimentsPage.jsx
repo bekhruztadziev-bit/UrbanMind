@@ -7,8 +7,9 @@ import { InterventionEffectView } from './InterventionEffectView'
 import { RobustnessSummary } from './RobustnessSummary'
 import { AIExplanation } from '../Dashboard/AIExplanation'
 import { exportExperimentToJson, exportExperimentToCsv } from '../../utils/export'
-import { fetchAIExplanation } from '../../api/client'
+import { fetchAIExplanation, generateDecisionReport } from '../../api/client'
 import { normalizeAIResponse, safeNumber, INTERVENTION_LABELS_RU } from '../../utils/normalize'
+import { DecisionReportModal } from '../Reports/DecisionReportModal'
 
 export function ExperimentsPage({
   t = {},
@@ -52,6 +53,11 @@ export function ExperimentsPage({
   const [expAIData, setExpAIData] = useState(null)
   const [expAIError, setExpAIError] = useState('')
 
+  // Decision report modal state
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [decisionReportData, setDecisionReportData] = useState(null)
+  const [reportLoading, setReportLoading] = useState(false)
+
   // When a new result comes in, show it and save to history
   const activeResult = displayedResult || experimentResult
 
@@ -65,6 +71,23 @@ export function ExperimentsPage({
       setExpAIData(null)
     }
   }, [experimentResult, status])
+
+  const handleOpenDecisionReport = async () => {
+    if (!activeResult) return
+    setReportLoading(true)
+    try {
+      const rep = await generateDecisionReport({
+        ...activeResult,
+        language: language,
+      })
+      setDecisionReportData(rep)
+      setReportModalOpen(true)
+    } catch (err) {
+      console.error('Failed to generate decision report:', err)
+    } finally {
+      setReportLoading(false)
+    }
+  }
 
   const handleRunExperimentAI = async (targetLang = language) => {
     if (!activeResult || !activeResult.conditions || activeResult.conditions.length === 0) return
@@ -340,7 +363,20 @@ export function ExperimentsPage({
           {activeResult && activeResult.conditions?.length > 0 && status !== 'RUNNING' && (
             <>
               {/* Export + Reset row */}
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="accent"
+                  style={{ fontSize: '0.82rem' }}
+                  onClick={handleOpenDecisionReport}
+                  disabled={reportLoading}
+                >
+                  {reportLoading ? (
+                    <span>⏳ {t.generatingDecisionReport || (isRu ? 'Формирование отчета…' : 'Generating Report…')}</span>
+                  ) : (
+                    <span>📋 {t.generateDecisionReport || (isRu ? 'Сформировать отчет о решении' : 'Generate Decision Report')}</span>
+                  )}
+                </button>
                 <button type="button" className="ghost-button" style={{ fontSize: '0.82rem' }} onClick={() => exportExperimentToJson(activeResult)}>
                   {t.exportJson || (isRu ? 'Экспорт JSON' : 'Export JSON')}
                 </button>
@@ -416,6 +452,14 @@ export function ExperimentsPage({
           )}
         </section>
       </main>
+
+      <DecisionReportModal
+        isOpen={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        report={decisionReportData}
+        language={language}
+        t={t}
+      />
     </div>
   )
 }

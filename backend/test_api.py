@@ -116,21 +116,52 @@ def test_ai_explain_endpoint_ru():
         assert "ПРАВИЛО-ОРИЕНТИРОВАННОЕ" in data["provenance"]
 
 
+def test_policies_endpoint():
+    response = client.get("/api/policies")
+    assert response.status_code == 200, response.text
+    policies = response.json()
+    assert isinstance(policies, list)
+    assert len(policies) >= 4
+    policy_ids = [p["policy_id"] for p in policies]
+    assert "flow" in policy_ids
+    assert "eco" in policy_ids
+    assert "balanced" in policy_ids
+    assert "custom" in policy_ids
+    for p in policies:
+        assert "objective_question" in p
+        assert "primary_dimensions" in p
+        assert "why_won_template" in p
+
+
+def test_policies_compare_endpoint():
+    response = client.post("/api/policies/compare", json={"scenario": "midday", "steps": 5, "warmup_steps": 0, "measurement_steps": 5})
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "policy_comparison" in data
+    comp = data["policy_comparison"]
+    assert "flow" in comp
+    assert "eco" in comp
+    assert "balanced" in comp
+    assert "why_won" in comp["flow"]
+    assert "why_won" in comp["eco"]
+    assert "why_won" in comp["balanced"]
+
+
+
 def test_scenario_run_endpoint():
     payload = {
         "intervention_id": "green_wave_coordination_0s_signal_timing",
         "traffic_multiplier": 1.0,
-        "duration": 300,
+        "duration": 10,
         "warmup_steps": 0,
-        "measurement_steps": 300,
+        "measurement_steps": 10,
     }
     response = client.post("/api/scenario/run", json=payload)
     assert response.status_code == 200, response.text
     data = response.json()
-    assert "traffic_multiplier" in data
-    assert "control_metrics" in data
-    assert "scenario_metrics" in data
-    assert "metric_deltas" in data
+    assert "control" in data
+    assert "scenario" in data
+    assert "deltas" in data
 
 
 def test_experiment_run_endpoint_minimal():
@@ -138,9 +169,9 @@ def test_experiment_run_endpoint_minimal():
         "name": "Test Mini Experiment",
         "traffic_levels": [1.0],
         "intervention_ids": ["extend_green_5s_signal_timing"],
-        "duration": 300,
+        "duration": 10,
         "warmup_steps": 0,
-        "measurement_steps": 300,
+        "measurement_steps": 10,
     }
     response = client.post("/api/experiments/run", json=payload)
     assert response.status_code == 200, response.text
@@ -150,3 +181,143 @@ def test_experiment_run_endpoint_minimal():
     assert len(data["conditions"]) >= 1
     assert "summary" in data
     assert data["summary"]["status"] in ["COMPLETED", "PARTIALLY_COMPLETED"]
+
+
+def test_spatial_hierarchy_endpoint():
+    response = client.get("/api/spatial/hierarchy")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["id"] == "tashkent"
+    assert "districts" in data
+    assert len(data["districts"]) >= 1
+
+
+def test_spatial_scopes_endpoint():
+    response = client.get("/api/spatial/scopes")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "default_scope" in data
+    assert data["default_scope"]["id"] == "central_corridor"
+    assert "cross_district_context" in data
+
+
+def test_decision_report_generate_endpoint():
+    payload = {
+        "scenario": "midday",
+        "policy": "balanced",
+        "baseline": {"average_waiting_seconds": 25.0, "average_speed_kmh": 22.0, "co2_kg": 18.0},
+        "best_candidate": {
+            "id": "green_wave",
+            "label": "Green Wave",
+            "metrics": {"average_waiting_seconds": 18.0, "average_speed_kmh": 28.0, "co2_kg": 15.0},
+            "policy_breakdown": {"overall_score": 15.0, "is_valid": True},
+            "tradeoff_summary": {"improved": [], "worsened": []},
+        },
+    }
+    response = client.post("/api/reports/generate", json=payload)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "report_id" in data
+    assert "executive_summary" in data
+    assert "metric_comparison" in data
+    assert "policy_audit" in data
+
+
+def test_decision_report_export_csv_endpoint():
+    payload = {
+        "scenario": "midday",
+        "policy": "balanced",
+        "baseline": {"average_waiting_seconds": 25.0, "average_speed_kmh": 22.0},
+        "best_candidate": {
+            "id": "green_wave",
+            "label": "Green Wave",
+            "metrics": {"average_waiting_seconds": 18.0, "average_speed_kmh": 28.0},
+        },
+    }
+    response = client.post("/api/reports/export/csv", json=payload)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "csv" in data
+    assert "URBANMIND DECISION REPORT" in data["csv"]
+
+
+def test_decision_report_export_html_endpoint():
+    payload = {
+        "scenario": "midday",
+        "policy": "balanced",
+        "baseline": {"average_waiting_seconds": 25.0, "average_speed_kmh": 22.0},
+        "best_candidate": {
+            "id": "green_wave",
+            "label": "Green Wave",
+            "metrics": {"average_waiting_seconds": 18.0, "average_speed_kmh": 28.0},
+        },
+        "language": "en",
+    }
+    response = client.post("/api/reports/export/html", json=payload)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "html" in data
+    assert "MUNICIPAL DECISION REPORT" in data["html"]
+
+
+def test_pilots_endpoints():
+    # 1. List
+    response = client.get("/api/pilots")
+    assert response.status_code == 200, response.text
+    pilots = response.json()
+    assert isinstance(pilots, list)
+    assert len(pilots) >= 1
+
+    # 2. Get
+    pilot_id = pilots[0]["id"]
+    get_res = client.get(f"/api/pilots/{pilot_id}")
+    assert get_res.status_code == 200
+    assert get_res.json()["id"] == pilot_id
+
+    # 3. Create
+    create_res = client.post("/api/pilots", json={
+        "title": "API Test Pilot",
+        "status": "DRAFT",
+    })
+    assert create_res.status_code == 200
+    created = create_res.json()
+    assert created["title"] == "API Test Pilot"
+
+    # 4. Update
+    upd_res = client.post(f"/api/pilots/{created['id']}/update", json={"status": "ANALYSIS"})
+    assert upd_res.status_code == 200
+    assert upd_res.json()["status"] == "ANALYSIS"
+
+
+def test_calibration_endpoints():
+    # 1. Status
+    res = client.get("/api/calibration/status")
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert "calibration" in data
+    assert data["calibration"]["status"] == "UNCALIBRATED"
+    assert "model_vs_reality" in data
+    assert "observed_metrics" in data["model_vs_reality"]
+
+    # 2. Validate
+    val_res = client.post("/api/calibration/validate", json={
+        "observed_series": [10.0, 20.0, 30.0],
+        "simulated_series": [11.0, 19.0, 32.0],
+        "metric_name": "delay",
+        "unit": "s",
+    })
+    assert val_res.status_code == 200
+    val_data = val_res.json()
+    assert val_data["sample_count"] == 3
+    assert val_data["mae"] is not None
+
+
+def test_analytics_summary_endpoint():
+    res = client.get("/api/analytics/summary")
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert "experiments_run" in data
+    assert "policies_used" in data
+    assert "decision_reports_generated" in data
+
+

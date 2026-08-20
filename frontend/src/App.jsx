@@ -11,9 +11,13 @@ import { Dashboard } from './components/Dashboard/Dashboard'
 import { FAQ } from './components/FAQ/FAQ'
 import { ExperimentsPage } from './components/Experiments/ExperimentsPage'
 import { HistoryPage } from './components/History/HistoryPage'
+import { PilotWorkspace } from './components/Pilots/PilotWorkspace'
+import { DecisionReportModal } from './components/Reports/DecisionReportModal'
 import { AmbientBackground } from './components/Common/AmbientBackground'
 import { HeroIntro } from './components/Common/HeroIntro'
+import { generateDecisionReport } from './api/client'
 import './App.css'
+
 
 const fallbackDistrict = {
   name: 'Tashkent Central Corridor',
@@ -81,6 +85,8 @@ function App() {
   const [globalError, setGlobalError] = useState('')
   const [presentationMode, setPresentationMode] = useState(false)
   const [showIntro, setShowIntro] = useState(() => localStorage.getItem('urbanmind_hide_intro') !== 'true')
+  const [dashboardReportModalOpen, setDashboardReportModalOpen] = useState(false)
+  const [dashboardReportData, setDashboardReportData] = useState(null)
 
   const {
     metrics,
@@ -90,6 +96,10 @@ function App() {
     selectedCandidate,
     loading: optLoading,
     optError,
+    activePolicy,
+    setActivePolicy,
+    customWeights,
+    setCustomWeights,
     aiState,
     aiData,
     aiError,
@@ -100,6 +110,23 @@ function App() {
 
   const experiment = useExperiment()
   const experimentHistory = useExperimentHistory()
+
+  const handleOpenDashboardDecisionReport = async (resultToReport) => {
+    const target = resultToReport || optResult
+    if (!target) return
+    try {
+      const rep = await generateDecisionReport({
+        ...target,
+        policy_id: activePolicy,
+        custom_weights: customWeights,
+        language: language,
+      })
+      setDashboardReportData(rep)
+      setDashboardReportModalOpen(true)
+    } catch (err) {
+      console.error('Failed to generate dashboard decision report:', err)
+    }
+  }
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -192,6 +219,7 @@ function App() {
         <AmbientBackground />
         <HistoryPage
           t={t}
+          language={language}
           setCurrentView={setCurrentView}
           toggleLanguage={toggleLanguage}
           experimentHistory={experimentHistory}
@@ -203,7 +231,73 @@ function App() {
     )
   }
 
+  if (currentView === 'pilots') {
+    return (
+      <>
+        <AmbientBackground />
+
+        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '1.2rem', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <Header
+            t={t}
+            currentView={currentView}
+            setCurrentView={setCurrentView}
+            toggleLanguage={toggleLanguage}
+            onOpenIntro={() => setShowIntro(true)}
+          />
+          <PilotWorkspace
+            language={language}
+            t={t}
+            onNavigateToDashboard={() => setCurrentView('insights')}
+            onNavigateToExplore={() => setCurrentView('explore')}
+            onOpenReport={() => {
+              if (optResult) {
+                handleOpenDashboardDecisionReport(optResult)
+              } else {
+                handleOpenDashboardDecisionReport({
+                  scenario: 'evening_peak',
+                  policy: activePolicy,
+                  baseline: {
+                    average_waiting_seconds: 24.8,
+                    average_travel_time_seconds: 118.5,
+                    average_speed_kmh: 22.1,
+                    stops_per_vehicle: 1.45,
+                    throughput_vehicles_per_hour: 1820.0,
+                    co2_kg: 18.2,
+                  },
+                  best_candidate: {
+                    id: 'green_wave_coordination_0s_signal_timing',
+                    label: 'Green Wave Corridor Progression (40 km/h offset)',
+                    label_ru: 'Зеленая волна по коридору (смещение фаз под 40 км/ч)',
+                    metrics: {
+                      average_waiting_seconds: 17.8,
+                      average_travel_time_seconds: 92.4,
+                      average_speed_kmh: 27.5,
+                      stops_per_vehicle: 0.85,
+                      throughput_vehicles_per_hour: 2150.0,
+                      co2_kg: 15.0,
+                    },
+                    policy_breakdown: { overall_score: 16.5, mobility_score: 24.0, environment_score: 15.0, accessibility_score: 3.0, is_valid: true },
+                    tradeoff_summary: { improved: [{ name: 'Average Delay', change_pct: -28.2 }], worsened: [{ name: 'Side Street Delay', change_pct: 3.5 }] },
+                  }
+                })
+              }
+            }}
+          />
+        </div>
+        <HeroIntro t={t} language={language} setLanguage={setLanguage} toggleLanguage={toggleLanguage} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
+        <DecisionReportModal
+          isOpen={dashboardReportModalOpen}
+          onClose={() => setDashboardReportModalOpen(false)}
+          report={dashboardReportData}
+          language={language}
+          t={t}
+        />
+      </>
+    )
+  }
+
   return (
+
     <>
       <AmbientBackground />
       <HeroIntro t={t} language={language} setLanguage={setLanguage} toggleLanguage={toggleLanguage} isOpen={showIntro} onClose={() => setShowIntro(false)} onSelectView={(v) => setCurrentView(v)} />
@@ -239,6 +333,10 @@ function App() {
           handleOptimize={() => handleOptimize((data) => {
             setSelectedId('intersection_1')
           })}
+          activePolicy={activePolicy}
+          onSelectPolicy={setActivePolicy}
+          customWeights={customWeights}
+          onUpdateCustomWeights={setCustomWeights}
           aiState={aiState}
           aiData={aiData}
           aiError={aiError}
@@ -247,8 +345,17 @@ function App() {
           error={globalError || optError}
           setCurrentView={setCurrentView}
           onTestInExplore={handleTestInExplore}
+          onOpenDecisionReport={handleOpenDashboardDecisionReport}
         />
       </div>
+
+      <DecisionReportModal
+        isOpen={dashboardReportModalOpen}
+        onClose={() => setDashboardReportModalOpen(false)}
+        report={dashboardReportData}
+        language={language}
+        t={t}
+      />
     </>
   )
 }

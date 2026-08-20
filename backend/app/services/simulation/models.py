@@ -153,6 +153,22 @@ class CandidateDelta(TypedDict, total=False):
     emissions_improvement_pct: Optional[float]
 
 
+class PolicyScoreBreakdown(TypedDict, total=False):
+    policy_id: str
+    policy_name: str
+    policy_name_ru: str
+    overall_score: float
+    ranking_score: float
+    mobility_score: float
+    environment_score: float
+    accessibility_score: float
+    weights: Dict[str, float]
+    is_valid: bool
+    constraint_violations_en: List[str]
+    constraint_violations_ru: List[str]
+    metric_deltas: Dict[str, float]
+
+
 class CandidateResult(TypedDict, total=False):
     id: str
     label: str
@@ -171,10 +187,45 @@ class CandidateResult(TypedDict, total=False):
     selected_reason: str
     selected_reason_ru: str
     tradeoff_summary: Optional[TradeoffSummary]
+    policy_breakdown: Optional[PolicyScoreBreakdown]
+
+
+class PolicyComparisonItem(TypedDict, total=False):
+    policy_id: str
+    policy_name: str
+    policy_name_ru: str
+    icon: str
+    objective_question: str
+    objective_question_ru: str
+    why_won: str
+    why_won_ru: str
+    best_candidate_id: str
+    best_candidate_label: str
+    best_candidate_score: float
+    overall_score: float
+    mobility_score: float
+    environment_score: float
+    accessibility_score: float
+    average_waiting_seconds: float
+    average_travel_time_seconds: float
+    co2_kg: float
+    throughput_vehicles_per_hour: float
+    stops_per_vehicle: float
+    delay_improvement_pct: float
+    emissions_improvement_pct: float
+    throughput_improvement_pct: float
+    stops_improvement_pct: float
+    winner: Optional[CandidateResult]
+    ranking: Optional[List[CandidateResult]]
+    tradeoffs: Optional[TradeoffSummary]
+
 
 
 class OptimizationResult(TypedDict, total=False):
     scenario: str
+    policy: Optional[str]
+    policy_definition: Optional[Dict[str, Any]]
+    policy_comparison: Optional[Dict[str, PolicyComparisonItem]]
     baseline: SimulationMetrics
     candidates: List[CandidateResult]
     ranked_candidates: List[CandidateResult]

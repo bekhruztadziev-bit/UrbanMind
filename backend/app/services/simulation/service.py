@@ -3,7 +3,8 @@ from app.services.simulation.models import SimulationRequest, SimulationMetrics,
 from app.services.simulation.session import run_simulation, _scenario_signal_selection
 from app.services.simulation.metrics import calculate_metrics, estimate_candidate_metrics
 from app.services.simulation.interventions import get_candidate_interventions
-from app.services.simulation.optimizer import evaluate_candidates, rank_candidates
+from app.services.simulation.optimizer import evaluate_candidates, rank_candidates, compute_policy_comparison
+
 
 def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", intervention: Optional[dict[str, Any]] = None) -> SimulationMetrics:
     """Orchestrates a single simulation run and metric calculation."""
@@ -18,8 +19,24 @@ def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_st
     metrics = calculate_metrics(raw_result)
     return metrics
 
-def run_optimization_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", language: str = "en") -> OptimizationResult:
-    """Orchestrates the baseline run, intervention runs, estimation, and ranking."""
+
+def run_optimization_workflow(
+    steps: int = 300,
+    warmup_steps: int = 0,
+    measurement_steps: int = 0,
+    scenario: str = "midday",
+    policy: str = "balanced",
+    custom_weights: Optional[dict[str, float]] = None,
+    language: str = "en"
+) -> OptimizationResult:
+    """
+    Orchestrates Policy-Based Candidate Optimization:
+    1. Runs baseline microscopic simulation once.
+    2. Gathers and evaluates candidate interventions into a single evidence set.
+    3. Ranks candidates under the active policy.
+    4. Computes cross-policy comparison (FLOW, ECO, BALANCED, and CUSTOM if configured)
+       reusing the exact same simulation evidence.
+    """
     # 1. Baseline
     baseline_metrics = run_metrics_workflow(steps, warmup_steps, measurement_steps, scenario)
     
@@ -27,7 +44,7 @@ def run_optimization_workflow(steps: int = 300, warmup_steps: int = 0, measureme
     signal_id, phase_index = _scenario_signal_selection()
     candidates = get_candidate_interventions(signal_id, phase_index)
     
-    # 3. Evaluate Candidates
+    # 3. Evaluate Candidates to produce Common Evidence Set
     candidate_results_tuples = []
     for candidate in candidates:
         if candidate.get("evaluation_mode") == "SIMULATED":
@@ -36,10 +53,47 @@ def run_optimization_workflow(steps: int = 300, warmup_steps: int = 0, measureme
             metrics = estimate_candidate_metrics(baseline_metrics, candidate)
         candidate_results_tuples.append((candidate, metrics))
         
-        
-    # 4. Assemble and Rank
-    evaluated_candidates = evaluate_candidates(baseline_metrics, candidate_results_tuples, language=language)
-    return rank_candidates(scenario, baseline_metrics, evaluated_candidates, language=language)
+    # 4. Assemble and Rank under selected policy
+    evaluated_candidates = evaluate_candidates(
+        baseline_metrics,
+        candidate_results_tuples,
+        policy_id=policy,
+        custom_weights=custom_weights,
+        language=language
+    )
+    result = rank_candidates(
+        scenario,
+        baseline_metrics,
+        evaluated_candidates,
+        policy_id=policy,
+        custom_weights=custom_weights,
+        language=language
+    )
+
+    # 5. Compute cross-policy comparison (FLOW vs ECO vs BALANCED vs CUSTOM)
+    result["policy_comparison"] = compute_policy_comparison(
+        baseline_metrics,
+        candidate_results_tuples,
+        custom_weights=custom_weights,
+        language=language
+    )
+    return result
+
+
+def evaluate_policy_comparison_workflow(
+    baseline: SimulationMetrics,
+    candidate_results: list[tuple[dict[str, Any], SimulationMetrics]],
+    custom_weights: Optional[dict[str, float]] = None,
+    language: str = "en"
+) -> dict[str, Any]:
+    """Evaluates an existing simulation evidence set under all policies without re-running SUMO."""
+    return compute_policy_comparison(
+        baseline,
+        candidate_results,
+        custom_weights=custom_weights,
+        language=language
+    )
+
 
 
 def run_scenario_workflow(request: dict[str, Any]) -> dict[str, Any]:

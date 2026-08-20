@@ -1,12 +1,34 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Header } from '../Header/Header'
+import { DecisionReportModal } from '../Reports/DecisionReportModal'
+import { generateDecisionReport } from '../../api/client'
 
-export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHistory, setDisplayedResult, onOpenIntro }) {
+export function HistoryPage({ t, language = 'en', setCurrentView, toggleLanguage, experimentHistory, setDisplayedResult, onOpenIntro }) {
   const { experiments, removeExperiment, clearHistory } = experimentHistory
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [decisionReportData, setDecisionReportData] = useState(null)
+  const [loadingExpId, setLoadingExpId] = useState(null)
+  const isRu = language === 'ru'
 
   const handleReopen = (exp) => {
     setDisplayedResult(exp)
     setCurrentView('explore')
+  }
+
+  const handleOpenReport = async (exp) => {
+    setLoadingExpId(exp.experiment_id)
+    try {
+      const rep = await generateDecisionReport({
+        ...exp,
+        language: language,
+      })
+      setDecisionReportData(rep)
+      setReportModalOpen(true)
+    } catch (err) {
+      console.error('Failed to generate decision report from history:', err)
+    } finally {
+      setLoadingExpId(null)
+    }
   }
 
   return (
@@ -36,6 +58,7 @@ export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHisto
               {experiments.map(exp => {
                 const statusColor = exp.summary?.status === 'COMPLETED' ? 'var(--accent-secondary)' : exp.summary?.status === 'PARTIALLY_COMPLETED' ? '#fbbf24' : '#f87171'
                 const isScenario = exp.conditions?.length === 1
+                const isLoading = loadingExpId === exp.experiment_id
                 return (
                   <div key={exp.experiment_id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: 'var(--shadow-card)' }}>
                     <div>
@@ -63,11 +86,11 @@ export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHisto
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '0.5rem', flexWrap: 'wrap' }}>
                       <button
                         type="button"
                         className="accent"
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, minWidth: '90px' }}
                         onClick={() => handleReopen(exp)}
                       >
                         {t.view}
@@ -75,10 +98,20 @@ export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHisto
                       <button
                         type="button"
                         className="ghost-button"
-                        style={{ flex: 1, color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
-                        onClick={() => removeExperiment(exp.experiment_id)}
+                        style={{ flex: 1, minWidth: '100px', borderColor: 'rgba(56,189,248,0.3)', color: '#38bdf8' }}
+                        onClick={() => handleOpenReport(exp)}
+                        disabled={isLoading}
                       >
-                        {t.remove}
+                        {isLoading ? '⏳…' : `📋 ${t.decisionReport || (isRu ? 'Отчет' : 'Report')}`}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        style={{ flex: '0 0 auto', color: '#f87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+                        onClick={() => removeExperiment(exp.experiment_id)}
+                        title={t.remove}
+                      >
+                        ✕
                       </button>
                     </div>
                   </div>
@@ -88,6 +121,14 @@ export function HistoryPage({ t, setCurrentView, toggleLanguage, experimentHisto
           )}
         </div>
       </main>
+
+      <DecisionReportModal
+        isOpen={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        report={decisionReportData}
+        language={language}
+        t={t}
+      />
     </div>
   )
 }

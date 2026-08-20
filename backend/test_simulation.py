@@ -4,7 +4,8 @@ from unittest.mock import patch, MagicMock
 from app.services.simulation.models import SimulationMetrics, RawSimulationResult, SimulationRequest
 from app.services.simulation.metrics import calculate_metrics, estimate_candidate_metrics
 from app.services.simulation.interventions import get_candidate_interventions
-from app.services.simulation.optimizer import _candidate_score, evaluate_candidates, rank_candidates
+from app.services.simulation.optimizer import evaluate_candidates, rank_candidates
+from app.services.simulation.policies import evaluate_policy_score, BALANCED_POLICY
 from app.services.simulation.session import run_simulation
 
 
@@ -98,25 +99,33 @@ def test_interventions_registry():
 
 
 def test_optimizer_scoring_and_ranking():
-    m1 = SimulationMetrics(
-        average_waiting_seconds=10.0,
-        average_speed_kmh=40.0,
-        co2_kg=20.0,
-        pedestrian_delay_seconds=5.0,
-        accessibility_score=80.0
-    )
-    score1 = _candidate_score(m1)
+    baseline = {
+        "average_waiting_seconds": 30.0,
+        "average_speed_kmh": 25.0,
+        "co2_kg": 50.0,
+        "pedestrian_delay_seconds": 15.0,
+        "accessibility_score": 80.0
+    }
     
-    m2 = SimulationMetrics(
-        average_waiting_seconds=50.0,
-        average_speed_kmh=10.0,
-        co2_kg=50.0,
-        pedestrian_delay_seconds=20.0,
-        accessibility_score=40.0
-    )
-    score2 = _candidate_score(m2)
+    m1 = {
+        "average_waiting_seconds": 15.0, # 50% improvement
+        "average_speed_kmh": 32.0,
+        "co2_kg": 45.0,
+        "pedestrian_delay_seconds": 12.0,
+        "accessibility_score": 85.0
+    }
+    eval1 = evaluate_policy_score(baseline, m1, BALANCED_POLICY)
     
-    assert score1 < score2 # m1 should be better (lower)
+    m2 = {
+        "average_waiting_seconds": 45.0, # 50% worsening
+        "average_speed_kmh": 15.0,
+        "co2_kg": 65.0,
+        "pedestrian_delay_seconds": 22.0,
+        "accessibility_score": 60.0
+    }
+    eval2 = evaluate_policy_score(baseline, m2, BALANCED_POLICY)
+    
+    assert eval1["overall_score"] > eval2["overall_score"] # m1 should be better (higher score)
 
 def test_optimizer_best_candidate_selection():
     baseline = {

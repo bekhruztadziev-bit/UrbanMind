@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react'
 import { MetricsGrid } from './MetricsGrid'
 import { RecommendationPanel } from './RecommendationPanel'
+import { PolicySelector } from './PolicySelector'
+import { PolicyComparisonCard } from './PolicyComparisonCard'
 import { AIExplanation } from './AIExplanation'
 import { CandidateList } from './CandidateList'
 import { EnvironmentPanel } from './EnvironmentPanel'
@@ -20,6 +22,10 @@ export function Dashboard({
   setSelectedId,
   handleAnalyze,
   handleOptimize,
+  activePolicy = 'balanced',
+  onSelectPolicy,
+  customWeights,
+  onUpdateCustomWeights,
   aiState = 'READY',
   aiData = null,
   aiError = '',
@@ -27,7 +33,8 @@ export function Dashboard({
   loading,
   error,
   setCurrentView,
-  onTestInExplore
+  onTestInExplore,
+  onOpenDecisionReport
 }) {
   const envData = useEnvironment()
   const sidebarRef = useRef(null)
@@ -84,6 +91,16 @@ export function Dashboard({
 
         <MetricsGrid t={t} metrics={metrics} optResult={optResult} />
 
+        <PolicySelector
+          t={t}
+          language={language}
+          activePolicy={activePolicy}
+          onSelectPolicy={onSelectPolicy}
+          customWeights={customWeights}
+          onUpdateCustomWeights={onUpdateCustomWeights}
+          disabled={loading}
+        />
+
         <div className="panel-card button-stack">
           {optResult && (
             <div className="sim-status-banner success">
@@ -124,7 +141,21 @@ export function Dashboard({
       </aside>
 
       <section className="results-panel" ref={resultsRef}>
-        <RecommendationPanel t={t} language={language} selectedCandidate={selectedCandidate} optResult={optResult} onTestInExplore={onTestInExplore} />
+        <RecommendationPanel
+          t={t}
+          language={language}
+          selectedCandidate={selectedCandidate}
+          optResult={optResult}
+          onTestInExplore={onTestInExplore}
+          onOpenDecisionReport={onOpenDecisionReport}
+        />
+        <PolicyComparisonCard
+          t={t}
+          language={language}
+          policyComparison={optResult?.policy_comparison}
+          activePolicy={activePolicy}
+          onSelectPolicy={onSelectPolicy}
+        />
         <AIExplanation
           t={t}
           language={language}
@@ -147,4 +178,3 @@ export function Dashboard({
     </>
   )
 }
-

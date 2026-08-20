@@ -11,11 +11,16 @@ export function useOptimization(mahalla, scenario, language = 'en') {
   const [loading, setLoading] = useState(false)
   const [optError, setOptError] = useState('')
 
+  // Policy Engine state: 'balanced' | 'flow' | 'eco' | 'custom'
+  const [activePolicy, setActivePolicy] = useState('balanced')
+  const [customWeights, setCustomWeights] = useState({ mobility: 0.34, environment: 0.33, accessibility: 0.33 })
+
   // Explicit AI Analysis states: 'IDLE' | 'READY' | 'ANALYZING' | 'COMPLETE' | 'ERROR' | 'FALLBACK'
   const [aiState, setAiState] = useState('IDLE')
   const [aiData, setAiData] = useState(null)
   const [aiError, setAiError] = useState('')
   const prevLangRef = useRef(language)
+  const prevPolicyRef = useRef(activePolicy)
 
   const handleAnalyze = async () => {
     setLoading(true)
@@ -35,17 +40,23 @@ export function useOptimization(mahalla, scenario, language = 'en') {
     }
   }
 
-  const handleOptimize = async (onSuccess) => {
+  const handleOptimize = async (onSuccess, targetPolicy = activePolicy, targetWeights = customWeights) => {
     setLoading(true)
     setOptError('')
     try {
-      const data = await fetchOptimize({ steps: 300, scenario, language })
+      const payload = {
+        steps: 300,
+        scenario,
+        policy: targetPolicy,
+        custom_weights: targetPolicy === 'custom' ? targetWeights : null,
+        language,
+      }
+      const data = await fetchOptimize(payload)
       const normalized = normalizeOptimizationResult(data)
       setOptResult(normalized)
       setMetrics(normalized.baseline)
       setSelectedCandidateId(normalized.best_candidate?.id || null)
 
-      // If backend returned pre-computed AI analysis, normalize it; otherwise set state to READY for user trigger
       if (normalized.ai) {
         setAiData(normalized.ai)
         setAiState(normalized.ai.is_ai ? 'COMPLETE' : 'FALLBACK')
@@ -62,6 +73,20 @@ export function useOptimization(mahalla, scenario, language = 'en') {
     }
   }
 
+  const handleSelectPolicy = (newPolicy) => {
+    setActivePolicy(newPolicy)
+    if (optResult) {
+      handleOptimize(null, newPolicy, customWeights)
+    }
+  }
+
+  const handleUpdateCustomWeights = (newWeights) => {
+    setCustomWeights(newWeights)
+    if (activePolicy === 'custom' && optResult) {
+      handleOptimize(null, 'custom', newWeights)
+    }
+  }
+
   const handleRunAIExplanation = async (targetLang = language) => {
     if (!optResult) return
     setAiState('ANALYZING')
@@ -71,6 +96,8 @@ export function useOptimization(mahalla, scenario, language = 'en') {
         baseline: optResult.baseline || metrics,
         candidates: optResult.ranked_candidates || optResult.candidates || [],
         best_candidate: selectedCandidate || optResult.best_candidate,
+        policy: activePolicy,
+        policy_definition: optResult.policy_definition,
         language: targetLang,
       }
       const explanation = await fetchAIExplanation(payload)
@@ -112,11 +139,17 @@ export function useOptimization(mahalla, scenario, language = 'en') {
     selectedCandidate,
     loading,
     optError,
+    // Policy Engine
+    activePolicy,
+    setActivePolicy: handleSelectPolicy,
+    customWeights,
+    setCustomWeights: handleUpdateCustomWeights,
+    // AI
     aiState,
     aiData,
     aiError,
     handleRunAIExplanation,
     handleAnalyze,
-    handleOptimize
+    handleOptimize,
   }
 }

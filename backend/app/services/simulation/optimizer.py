@@ -1,19 +1,11 @@
-from typing import Any, List, Tuple, Dict
+from typing import Any, List, Tuple, Dict, Optional
 
-from app.services.simulation.models import SimulationMetrics, CandidateResult, OptimizationResult, CandidateDelta, TradeoffSummary
+from app.services.simulation.models import (
+    SimulationMetrics, CandidateResult, OptimizationResult, CandidateDelta, TradeoffSummary,
+    PolicyScoreBreakdown, PolicyComparisonItem
+)
 from app.services.simulation.interventions import get_intervention_effect_summary, INTERVENTION_LABELS_RU, INTERVENTION_CATEGORIES_RU
-
-
-def _candidate_score(metrics: SimulationMetrics) -> float:
-    """Lower is better. The score balances operational delay, environmental cost, and mobility access."""
-    waiting = float(metrics.get("average_waiting_seconds", 0.0))
-    speed = float(metrics.get("average_speed_kmh", 0.0))
-    co2 = float(metrics.get("co2_kg", 0.0))
-    pedestrian_delay = float(metrics.get("pedestrian_delay_seconds", 0.0))
-    access = float(metrics.get("accessibility_score", 100.0))
-    stops = float(metrics.get("stops_per_vehicle", 1.0))
-    queue = float(metrics.get("mean_queue_length_meters", 30.0))
-    return (waiting * 0.45) - (speed * 0.15) + (co2 * 0.18) + (stops * 4.0) + (queue * 0.05) + (pedestrian_delay * 0.08) - (access * 0.12)
+from app.services.simulation.policies import get_policy, evaluate_policy_score, PolicyDefinition, POLICIES
 
 
 def analyze_tradeoffs(delta: CandidateDelta, language: str = "en") -> TradeoffSummary:
@@ -75,7 +67,18 @@ def analyze_tradeoffs(delta: CandidateDelta, language: str = "en") -> TradeoffSu
     }
 
 
-def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tuple[dict[str, Any], SimulationMetrics]], language: str = "en") -> List[CandidateResult]:
+def evaluate_candidates(
+    baseline: SimulationMetrics,
+    candidate_results: List[Tuple[dict[str, Any], SimulationMetrics]],
+    policy_id: str = "balanced",
+    custom_weights: Optional[Dict[str, float]] = None,
+    language: str = "en"
+) -> List[CandidateResult]:
+    """
+    Evaluate candidate interventions against the baseline under the selected optimization policy.
+    Computes normalized multi-objective dimensional scores and constraint compliance.
+    """
+    policy = get_policy(policy_id, custom_weights)
     candidates = []
     base_speed = float(baseline.get("average_speed_kmh", 1.0) or 1.0)
     base_wait = float(baseline.get("average_waiting_seconds", 1.0) or 1.0)
@@ -146,6 +149,7 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
         }
 
         tradeoff = analyze_tradeoffs(delta, language=language)
+        policy_eval = evaluate_policy_score(baseline, metrics, policy)
 
         candidate: CandidateResult = {
             "id": f"{entry.get('type')}_{entry.get('seconds', 0)}s_{category}",
@@ -164,35 +168,145 @@ def evaluate_candidates(baseline: SimulationMetrics, candidate_results: List[Tup
             "intervention": clean_intervention,
             "metrics": metrics,
             "delta": delta,
-            "score": _candidate_score(metrics),
+            "score": policy_eval["overall_score"],
             "tradeoff_summary": tradeoff,
+            "policy_breakdown": policy_eval,
         }
         candidates.append(candidate)
     return candidates
 
 
-def rank_candidates(scenario: str, baseline: SimulationMetrics, candidates: List[CandidateResult], language: str = "en") -> OptimizationResult:
-    ranked = sorted(candidates, key=lambda item: (item["score"], item["metrics"]["average_waiting_seconds"], -item["metrics"]["average_speed_kmh"]))
+def compute_policy_comparison(
+    baseline: SimulationMetrics,
+    candidate_results: List[Tuple[dict[str, Any], SimulationMetrics]],
+    custom_weights: Optional[Dict[str, float]] = None,
+    language: str = "en"
+) -> Dict[str, PolicyComparisonItem]:
+    """
+    Evaluate candidate pool under FLOW, ECO, and BALANCED policies (and CUSTOM if configured)
+    to demonstrate how differing municipal priorities shift the recommended optimal intervention.
+    """
+    comparison: Dict[str, PolicyComparisonItem] = {}
+    from app.services.simulation.policies import generate_why_this_won_explanation
+
+    policy_ids = ["flow", "eco", "balanced"]
+    if custom_weights:
+        policy_ids.append("custom")
+
+    for pid in policy_ids:
+        policy = get_policy(pid, custom_weights=custom_weights if pid == "custom" else None)
+        evaluated = evaluate_candidates(
+            baseline,
+            candidate_results,
+            policy_id=pid,
+            custom_weights=custom_weights if pid == "custom" else None,
+            language=language
+        )
+        ranked = sorted(evaluated, key=lambda c: (
+            c.get("policy_breakdown", {}).get("ranking_score", c["score"]),
+            -c["metrics"].get("average_waiting_seconds", 0.0),
+            c["metrics"].get("average_speed_kmh", 0.0)
+        ), reverse=True)
+        best = ranked[0]
+        pb = best.get("policy_breakdown", {})
+        delta = best.get("delta", {})
+
+        why_won_en = generate_why_this_won_explanation(policy, best, language="en")
+        why_won_ru = generate_why_this_won_explanation(policy, best, language="ru")
+
+        comparison[pid] = {
+            "policy_id": pid,
+            "policy_name": policy.name,
+            "policy_name_ru": policy.name_ru,
+            "icon": policy.icon,
+            "objective_question": policy.objective_question,
+            "objective_question_ru": policy.objective_question_ru,
+            "why_won": why_won_ru if language == "ru" else why_won_en,
+            "why_won_en": why_won_en,
+            "why_won_ru": why_won_ru,
+            "best_candidate_id": best["id"],
+            "best_candidate_label": best["label_ru"] if language == "ru" else best["label_en"],
+            "best_candidate_score": pb.get("overall_score", best["score"]),
+            "overall_score": pb.get("overall_score", best["score"]),
+            "mobility_score": pb.get("mobility_score", 0.0),
+            "environment_score": pb.get("environment_score", 0.0),
+            "accessibility_score": pb.get("accessibility_score", 0.0),
+            "average_waiting_seconds": float(best["metrics"].get("average_waiting_seconds", 0.0)),
+            "average_travel_time_seconds": float(best["metrics"].get("average_travel_time_seconds", 0.0)),
+            "co2_kg": float(best["metrics"].get("co2_kg", 0.0)),
+            "throughput_vehicles_per_hour": float(best["metrics"].get("throughput_vehicles_per_hour", 0.0)),
+            "stops_per_vehicle": float(best["metrics"].get("stops_per_vehicle", 0.0)),
+            "delay_improvement_pct": float(delta.get("delay_improvement_pct", 0.0)),
+            "emissions_improvement_pct": float(delta.get("emissions_improvement_pct", 0.0)),
+            "throughput_improvement_pct": float(delta.get("throughput_improvement_pct", 0.0)),
+            "stops_improvement_pct": float(delta.get("stops_improvement_pct", 0.0)),
+            "winner": best,
+            "ranking": ranked,
+            "tradeoffs": best.get("tradeoff_summary"),
+        }
+
+    return comparison
+
+
+def rank_candidates(
+    scenario: str,
+    baseline: SimulationMetrics,
+    candidates: List[CandidateResult],
+    policy_id: str = "balanced",
+    custom_weights: Optional[Dict[str, float]] = None,
+    language: str = "en"
+) -> OptimizationResult:
+    """
+    Rank candidate interventions under the selected policy.
+    Sorts in descending order of ranking_score (higher positive score is better).
+    """
+    from app.services.simulation.policies import generate_why_this_won_explanation
+    policy = get_policy(policy_id, custom_weights)
+    
+    # Sort candidates by ranking_score descending (higher composite improvement is better)
+    ranked = sorted(
+        candidates,
+        key=lambda item: (
+            item.get("policy_breakdown", {}).get("ranking_score", item["score"]),
+            -item["metrics"]["average_waiting_seconds"],
+            item["metrics"]["average_speed_kmh"]
+        ),
+        reverse=True
+    )
     best = ranked[0]
     
-    if best.get("type") == "green_wave_coordination":
-        reason_ru = "Выбрано, так как координация фаз коридора обеспечивает максимальное сокращение времени в пути и числа остановок по всей центральной оси Ташкента."
-        reason_en = "Selected because green-wave corridor coordination minimizes travel time and stop frequency across the primary central Tashkent corridor."
-    elif language == "ru":
-        reason_ru = "Выбрано, так как обеспечивает оптимальный баланс задержек, выбросов и доступности по всему району."
-        reason_en = "Selected because it balances delay, emissions, and accessibility across the neighborhood."
-    else:
-        reason_ru = "Выбрано на основе многокритериальной оптимизации задержек и выбросов."
-        reason_en = "Selected because it balances delay, emissions, and accessibility across the neighborhood instead of optimizing only for a single junction."
+    why_won_en = generate_why_this_won_explanation(policy, best, language="en")
+    why_won_ru = generate_why_this_won_explanation(policy, best, language="ru")
 
-    best["selected_reason"] = reason_ru if language == "ru" else reason_en
-    best["selected_reason_ru"] = reason_ru
-    best["selected_reason_en"] = reason_en
+    best["selected_reason"] = why_won_ru if language == "ru" else why_won_en
+    best["selected_reason_ru"] = why_won_ru
+    best["selected_reason_en"] = why_won_en
+    best["why_won"] = why_won_ru if language == "ru" else why_won_en
+    best["why_won_ru"] = why_won_ru
+    best["why_won_en"] = why_won_en
 
     return {
         "scenario": scenario,
+        "policy": policy.policy_id,
+        "policy_definition": {
+            "policy_id": policy.policy_id,
+            "name": policy.name,
+            "name_ru": policy.name_ru,
+            "description": policy.description,
+            "description_ru": policy.description_ru,
+            "icon": policy.icon,
+            "objective_question": policy.objective_question,
+            "objective_question_ru": policy.objective_question_ru,
+            "primary_dimensions": policy.primary_dimensions,
+            "objective_weights": policy.objective_weights,
+            "normalization_method": policy.normalization_method,
+        },
         "baseline": baseline,
         "candidates": candidates,
         "ranked_candidates": ranked,
         "best_candidate": best,
+        "why_won": why_won_ru if language == "ru" else why_won_en,
+        "why_won_ru": why_won_ru,
+        "why_won_en": why_won_en,
     }
+
