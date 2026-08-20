@@ -44,6 +44,16 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
   const optThroughput = safeNumber(optResult?.baseline?.throughput_vehicles_per_hour, throughput)
 
   const isSimulated = !metrics?.is_fallback
+  const simulatedBadge = t?.simulatedBadge || 'SIMULATED'
+  const fallbackBadge = t?.fallbackBadge || 'FALLBACK'
+  const sourceLabels = {
+    travelTime: t?.sourceTravelTime || 'SUMO TraCI trip duration',
+    queueLength: t?.sourceQueueLength || 'SUMO halting queue length',
+    stops: t?.sourceStops || 'TraCI vehicle velocity stop transitions',
+    throughput: t?.sourceThroughput || 'Completed trips per hour',
+    emissions: t?.sourceEmissions || 'SUMO TraCI emission model',
+    accessibility: t?.sourceAccessibility || 'Multi-objective accessibility formula',
+  }
 
   return (
     <>
@@ -52,7 +62,7 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
           <span>
             {t?.avgSpeed || 'Avg. speed'}
             <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`} title={isSimulated ? (t?.simulatedLabel || 'SUMO simulation') : (t?.heuristicLabel || 'Calibrated fallback')}>
-              {isSimulated ? 'SIMULATED' : 'FALLBACK'}
+              {isSimulated ? simulatedBadge : fallbackBadge}
             </span>
           </span>
           <AnimatedMetric value={speed} suffix=" km/h" decimals={2} />
@@ -62,7 +72,7 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
           <span>
             {t?.waiting || 'Delay'}
             <span className={`provenance-badge ${isSimulated ? 'simulated' : 'estimated'}`} title={isSimulated ? (t?.simulatedLabel || 'SUMO simulation') : (t?.heuristicLabel || 'Calibrated fallback')}>
-              {isSimulated ? 'SIMULATED' : 'FALLBACK'}
+              {isSimulated ? simulatedBadge : fallbackBadge}
             </span>
           </span>
           <AnimatedMetric value={meanWait} suffix=" s" decimals={2} />
@@ -71,8 +81,8 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             {t?.travelTime || 'Travel Time'}
-            <span className="provenance-badge simulated" title="SUMO TraCI trip duration">
-              SIMULATED
+            <span className="provenance-badge simulated" title={sourceLabels.travelTime}>
+              {simulatedBadge}
             </span>
           </span>
           <AnimatedMetric value={travelTime} suffix=" s" decimals={1} />
@@ -81,8 +91,8 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             {t?.queueLength || 'Queue Length'}
-            <span className="provenance-badge simulated" title="SUMO halting queue length">
-              SIMULATED
+            <span className="provenance-badge simulated" title={sourceLabels.queueLength}>
+              {simulatedBadge}
             </span>
           </span>
           <AnimatedMetric value={queueLength} suffix=" m" decimals={1} />
@@ -91,8 +101,8 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             {t?.stopsPerVehicle || 'Stops / Veh'}
-            <span className="provenance-badge simulated" title="TraCI vehicle velocity stop transitions">
-              SIMULATED
+            <span className="provenance-badge simulated" title={sourceLabels.stops}>
+              {simulatedBadge}
             </span>
           </span>
           <AnimatedMetric value={stops} suffix="" decimals={2} />
@@ -101,8 +111,8 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             {t?.throughput || 'Throughput'}
-            <span className="provenance-badge simulated" title="Completed trips per hour">
-              SIMULATED
+            <span className="provenance-badge simulated" title={sourceLabels.throughput}>
+              {simulatedBadge}
             </span>
           </span>
           <AnimatedMetric value={throughput} suffix=" veh/h" decimals={0} />
@@ -111,8 +121,8 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             CO₂
-            <span className="provenance-badge simulated" title="SUMO TraCI emission model">
-              SIMULATED
+            <span className="provenance-badge simulated" title={sourceLabels.emissions}>
+              {simulatedBadge}
             </span>
           </span>
           <AnimatedMetric value={co2} suffix=" kg" decimals={2} />
@@ -121,8 +131,8 @@ export function MetricsGrid({ t = {}, metrics = {}, optResult = null }) {
         <div>
           <span>
             {t?.access || 'Access'}
-            <span className="provenance-badge estimated" title="Multi-objective accessibility formula">
-              ESTIMATED
+            <span className="provenance-badge estimated" title={sourceLabels.accessibility}>
+              {t?.estimatedBadge || 'ESTIMATED'}
             </span>
           </span>
           <AnimatedMetric value={access} suffix="%" decimals={0} />

@@ -315,7 +315,7 @@ export function ExperimentsPage({
                 </div>
                 <div style={{ padding: '0.75rem 0.9rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <span style={{ fontSize: '0.72rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 700 }}>3. Метрики и анализ</span>
-                  <div style={{ fontSize: '0.84rem', color: '#f8fafc', marginTop: '3px' }}>{isRu ? 'Расчет задержек и CO₂' : 'Delay & CO2 calculation'}</div>
+                  <div style={{ fontSize: '0.84rem', color: '#f8fafc', marginTop: '3px' }}>{isRu ? 'Расчёт задержек и CO₂' : 'Delay & CO2 calculation'}</div>
                 </div>
               </div>
             </div>

@@ -19,7 +19,7 @@ def analyze_tradeoffs(delta: CandidateDelta, language: str = "en") -> TradeoffSu
     metrics_config = [
         {"key": "average_waiting_seconds", "name_en": "Delay", "name_ru": "Задержка", "unit": "s", "higher_is_better": False, "pct_key": "delay_improvement_pct"},
         {"key": "average_travel_time_seconds", "name_en": "Travel Time", "name_ru": "Время в пути", "unit": "s", "higher_is_better": False, "pct_key": "travel_time_improvement_pct"},
-        {"key": "stops_per_vehicle", "name_en": "Stops / Veh", "name_ru": "Остановки на авто", "unit": "", "higher_is_better": False, "pct_key": "stops_improvement_pct"},
+        {"key": "stops_per_vehicle", "name_en": "Stops / Veh", "name_ru": "Остановок на автомобиль", "unit": "", "higher_is_better": False, "pct_key": "stops_improvement_pct"},
         {"key": "mean_queue_length_meters", "name_en": "Queue Length", "name_ru": "Длина очереди", "unit": "m", "higher_is_better": False, "pct_key": "queue_improvement_pct"},
         {"key": "throughput_vehicles_per_hour", "name_en": "Throughput", "name_ru": "Пропускная способность", "unit": "veh/h", "higher_is_better": True, "pct_key": "throughput_improvement_pct"},
         {"key": "co2_kg", "name_en": "CO₂ Emissions", "name_ru": "Выбросы CO₂", "unit": "kg", "higher_is_better": False, "pct_key": "emissions_improvement_pct"},

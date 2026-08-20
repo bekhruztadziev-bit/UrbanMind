@@ -37,6 +37,9 @@ export function Dashboard({
   onOpenDecisionReport
 }) {
   const envData = useEnvironment()
+  const selectedLocationName = language === 'ru'
+    ? (selectedIntersection?.name_ru || selectedIntersection?.name)
+    : selectedIntersection?.name
   const sidebarRef = useRef(null)
   const resultsRef = useRef(null)
   const initialLoadRef = useRef(true)
@@ -72,8 +75,8 @@ export function Dashboard({
           <h2>{t.selectedLocation}</h2>
           {selectedIntersection ? (
             <>
-              <p className="location-name">{selectedIntersection.name}</p>
-              <p>ID: {selectedIntersection.id}</p>
+              <p className="location-name">{selectedLocationName}</p>
+              <p>{language === 'ru' ? 'Идентификатор' : 'ID'}: {selectedIntersection.id}</p>
               <p>{t.trafficLights}: {selectedIntersection.traffic_light_ids.length}</p>
               <p className="traffic-legend">{t.targetSignal}: {targetSignalId || t.fallbackSelection}</p>
               <div className="legend-box">

@@ -76,7 +76,7 @@ class PolicyDefinition:
 FLOW_POLICY = PolicyDefinition(
     policy_id="flow",
     name="FLOW (Mobility Priority)",
-    name_ru="ТРАФИК (Приоритет мобильности)",
+    name_ru="ПОТОК (приоритет мобильности)",
     description="Minimize congestion, travel delays, and vehicle stops while maximizing throughput.",
     description_ru="Минимизация заторов, задержек и остановок с максимизацией пропускной способности.",
     icon="🚗",
@@ -131,7 +131,7 @@ ECO_POLICY = PolicyDefinition(
     description_ru="Минимизация моделируемых выбросов (CO₂, NOₓ), холостого хода и расхода топлива.",
     icon="🌱",
     objective_question="Which candidate best reduces modeled transportation environmental impact?",
-    objective_question_ru="Какой вариант лучше всего снижает расчетное экологическое воздействие транспорта?",
+    objective_question_ru="Какой вариант лучше всего снижает расчётное экологическое воздействие транспорта?",
     primary_dimensions=[
         "sumo_co2_kg",
         "sumo_nox_g",
@@ -140,7 +140,7 @@ ECO_POLICY = PolicyDefinition(
         "average_waiting_seconds",
     ],
     why_won_template="Largest modeled emissions reduction (CO₂, NOₓ, fuel) while remaining within traffic constraints.",
-    why_won_template_ru="Максимальное снижение расчетных выбросов (CO₂, NOₓ, топлива) при соблюдении ограничений по потоку.",
+    why_won_template_ru="Максимальное снижение расчётных выбросов (CO₂, NOₓ, топлива) при соблюдении ограничений по потоку.",
     objective_weights={
         "mobility": 0.15,
         "environment": 0.75,
@@ -497,7 +497,7 @@ def generate_why_this_won_explanation(
     if pid == "flow":
         if is_ru:
             return (
-                f"Победитель по политике ТРАФИК (оценка {overall:+.1f}%): обеспечивает максимальное сокращение задержек "
+                f"Победитель по политике ПОТОК (оценка {overall:+.1f}%): обеспечивает максимальное сокращение задержек "
                 f"на {delay_imp:+.1f}% и времени в пути на {tt_imp:+.1f}%, с приростом пропускной способности на {tp_imp:+.1f}%."
             )
         return (
@@ -508,7 +508,7 @@ def generate_why_this_won_explanation(
     elif pid == "eco":
         if is_ru:
             return (
-                f"Победитель по политике ЭКО (оценка {overall:+.1f}%): обеспечивает максимальное сокращение расчетных выбросов CO₂ "
+                f"Победитель по политике ЭКО (оценка {overall:+.1f}%): обеспечивает максимальное сокращение расчётных выбросов CO₂ "
                 f"на {co2_imp:+.1f}% и снижение числа остановок на {stops_imp:+.1f}%, напрямую минимизируя холостой ход и расход топлива."
             )
         return (

@@ -48,7 +48,7 @@ METRIC_REGISTRY = [
     {
         "key": "stops_per_vehicle",
         "name_en": "Stops / Vehicle",
-        "name_ru": "Остановок на авто",
+        "name_ru": "Остановок на автомобиль",
         "unit": "stops",
         "direction": "minimize",
         "provenance": "SIMULATED",
@@ -218,7 +218,7 @@ def _derive_next_action(
         return {
             "action_code": "FIELD_DETECTOR_VALIDATION",
             "title_en": "Plan verified temporary turning-count validation",
-            "title_ru": "Спланировать верифицированную временную проверку поворотных потоков",
+            "title_ru": "Спланировать проверку поворотных потоков с помощью временных детекторов",
             "description_en": (
                 "Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming."
             ),
@@ -553,7 +553,7 @@ def generate_decision_report(
     primary_res_ru = f"Сокращение среднего накопленного ожидания по выборке снимков на {wait_reduction_pct}%"
 
     env_res_en = f"Simulated CO₂ emissions reduced by {co2_reduction_pct}%"
-    env_res_ru = f"Сокращение расчетных выбросов CO₂ на {co2_reduction_pct}%"
+    env_res_ru = f"Сокращение расчётных выбросов CO₂ на {co2_reduction_pct}%"
 
     recommendation_en = (
         f"Simulation-supported candidate for field validation: '{interv_label}'. "

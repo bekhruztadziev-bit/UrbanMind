@@ -199,19 +199,19 @@ export function RecommendationPanel({ t = {}, selectedCandidate, optResult, lang
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', textAlign: 'center' }}>
                 <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '0.4rem', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🚗 {t?.mobility || 'Mobility'}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🚗 {t?.mobility || (isRu ? 'Мобильность' : 'Mobility')}</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#38bdf8' }}>
                     {policyBreakdown.mobility_score > 0 ? '+' : ''}{Number(policyBreakdown.mobility_score || 0).toFixed(1)}%
                   </div>
                 </div>
                 <div style={{ background: 'rgba(74, 222, 128, 0.08)', padding: '0.4rem', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🌱 {t?.environment || 'Eco'}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🌱 {t?.environment || (isRu ? 'Экология' : 'Eco')}</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#4ade80' }}>
                     {policyBreakdown.environment_score > 0 ? '+' : ''}{Number(policyBreakdown.environment_score || 0).toFixed(1)}%
                   </div>
                 </div>
                 <div style={{ background: 'rgba(251, 191, 36, 0.08)', padding: '0.4rem', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🚶 {t?.accessibility || 'Access'}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>🚶 {t?.accessibility || (isRu ? 'Доступность' : 'Access')}</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fbbf24' }}>
                     {policyBreakdown.accessibility_score > 0 ? '+' : ''}{Number(policyBreakdown.accessibility_score || 0).toFixed(1)}%
                   </div>
@@ -235,7 +235,7 @@ export function RecommendationPanel({ t = {}, selectedCandidate, optResult, lang
           {/* Genuine Baseline vs Optimized Comparison Table */}
           <div className="comparison-table-wrapper" style={{ marginTop: '1.2rem' }}>
             <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
-              {t?.baselineVsOptimized || (isRu ? 'Сравнение: Базовый vs. Оптимизированный коридор' : 'Baseline vs. Optimized Corridor')}
+              {t?.baselineVsOptimized || (isRu ? 'Сравнение базового и оптимизированного коридора' : 'Baseline vs. Optimized Corridor')}
             </h4>
             <table className="comparison-table">
               <thead>
@@ -260,7 +260,7 @@ export function RecommendationPanel({ t = {}, selectedCandidate, optResult, lang
                   <td style={{ textAlign: 'right' }}>{renderMetricDeltaBadge(rawTTImp, false)}</td>
                 </tr>
                 <tr>
-                  <td>{t?.stopsPerVehicle || (isRu ? 'Остановок на авто' : 'Stops / Vehicle')}</td>
+                  <td>{t?.stopsPerVehicle || (isRu ? 'Остановок на автомобиль' : 'Stops / Vehicle')}</td>
                   <td style={{ textAlign: 'right' }}>{formatSafeNumber(baseStops, 2)}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)' }}>{formatSafeNumber(optStops, 2)}</td>
                   <td style={{ textAlign: 'right' }}>{renderMetricDeltaBadge(rawStopsImp, false)}</td>
@@ -291,7 +291,7 @@ export function RecommendationPanel({ t = {}, selectedCandidate, optResult, lang
           {tradeoff && (
             <div className="tradeoff-box" style={{ marginTop: '0.9rem', padding: '0.75rem 0.9rem', background: 'rgba(30, 41, 59, 0.4)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
               <h4 style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-                {isRu ? 'Анализ компромиссов (Trade-offs)' : 'Multi-Objective Trade-off Analysis'}
+                {isRu ? 'Анализ компромиссов' : 'Multi-Objective Trade-off Analysis'}
               </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.4 }}>
                 {isRu ? (tradeoff.verdict_ru || tradeoff.verdict_en) : (tradeoff.verdict_en || tradeoff.verdict_ru)}

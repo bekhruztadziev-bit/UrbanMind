@@ -48,8 +48,8 @@ const fallbackDistrict = {
     },
   },
   intersections: [
-    { id: 'demo_signal_group_a', name: 'Signal Group A (demonstration)', coords: [41.3168, 69.2666], traffic_light_ids: [], spatial_provenance: 'PRODUCT_DEMO_LABEL' },
-    { id: 'demo_signal_group_b', name: 'Signal Group B (demonstration)', coords: [41.3182, 69.2684], traffic_light_ids: [], spatial_provenance: 'PRODUCT_DEMO_LABEL' },
+    { id: 'demo_signal_group_a', name: 'Signal Group A (demonstration)', name_ru: 'Группа светофоров A (демонстрация)', coords: [41.3168, 69.2666], traffic_light_ids: [], spatial_provenance: 'PRODUCT_DEMO_LABEL' },
+    { id: 'demo_signal_group_b', name: 'Signal Group B (demonstration)', name_ru: 'Группа светофоров B (демонстрация)', coords: [41.3182, 69.2684], traffic_light_ids: [], spatial_provenance: 'PRODUCT_DEMO_LABEL' },
   ],
   roads: [],
   // Offline fallback is a visual shell, not a spatial evidence source.

@@ -6918,13 +6918,13 @@
         "flow": {
           "policy_id": "flow",
           "policy_name": "FLOW (Mobility Priority)",
-          "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+          "policy_name_ru": "ПОТОК (приоритет мобильности)",
           "icon": "🚗",
           "objective_question": "Which candidate best improves traffic mobility?",
           "objective_question_ru": "Какой вариант лучше всего повышает транспортную мобильность?",
           "why_won": "FLOW Winner (Score +2.0%): Delivers highest mobility improvement across delay (+2.8%), travel time (+16.2%), and corridor throughput (-40.0%).",
           "why_won_en": "FLOW Winner (Score +2.0%): Delivers highest mobility improvement across delay (+2.8%), travel time (+16.2%), and corridor throughput (-40.0%).",
-          "why_won_ru": "Победитель по политике ТРАФИК (оценка +2.0%): обеспечивает максимальное сокращение задержек на +2.8% и времени в пути на +16.2%, с приростом пропускной способности на -40.0%.",
+          "why_won_ru": "Победитель по политике ПОТОК (оценка +2.0%): обеспечивает максимальное сокращение задержек на +2.8% и времени в пути на +16.2%, с приростом пропускной способности на -40.0%.",
           "best_candidate_id": "school_zone_slowdown_0s_safety",
           "best_candidate_label": "Eligible-lane speed calming (20 km/h)",
           "best_candidate_score": 1.96,
@@ -7172,7 +7172,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 26.8,
                   "metric": "stops_per_vehicle"
                 },
@@ -7207,7 +7207,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": 1.96,
               "ranking_score": 1.96,
               "mobility_score": 2.05,
@@ -7467,7 +7467,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 26.8,
                     "metric": "stops_per_vehicle"
                   },
@@ -7502,7 +7502,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 1.96,
                 "ranking_score": 1.96,
                 "mobility_score": 2.05,
@@ -7763,7 +7763,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -7795,7 +7795,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 0.1,
                 "ranking_score": 0.1,
                 "mobility_score": 0.05,
@@ -8056,7 +8056,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -8088,7 +8088,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 0.1,
                 "ranking_score": 0.1,
                 "mobility_score": 0.05,
@@ -8349,7 +8349,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 1.8,
                     "metric": "stops_per_vehicle"
                   },
@@ -8381,7 +8381,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": -0.02,
                 "ranking_score": -0.02,
                 "mobility_score": -0.05,
@@ -8429,7 +8429,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 26.8,
                 "metric": "stops_per_vehicle"
               },
@@ -8719,7 +8719,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 26.8,
                   "metric": "stops_per_vehicle"
                 },
@@ -9015,7 +9015,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 26.8,
                     "metric": "stops_per_vehicle"
                   },
@@ -9312,7 +9312,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -9606,7 +9606,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -9900,7 +9900,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 1.8,
                     "metric": "stops_per_vehicle"
                   },
@@ -9981,7 +9981,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 26.8,
                 "metric": "stops_per_vehicle"
               },
@@ -10271,7 +10271,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 26.8,
                   "metric": "stops_per_vehicle"
                 },
@@ -10566,7 +10566,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 26.8,
                     "metric": "stops_per_vehicle"
                   },
@@ -10862,7 +10862,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -11155,7 +11155,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -11448,7 +11448,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 1.8,
                     "metric": "stops_per_vehicle"
                   },
@@ -11528,7 +11528,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 26.8,
                 "metric": "stops_per_vehicle"
               },
@@ -11566,13 +11566,13 @@
         "flow": {
           "policy_id": "flow",
           "policy_name": "FLOW (Mobility Priority)",
-          "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+          "policy_name_ru": "ПОТОК (приоритет мобильности)",
           "icon": "🚗",
           "objective_question": "Which candidate best improves traffic mobility?",
           "objective_question_ru": "Какой вариант лучше всего повышает транспортную мобильность?",
           "why_won": "FLOW Winner (Score +6.7%): Delivers highest mobility improvement across delay (+20.9%), travel time (+15.7%), and corridor throughput (-33.3%).",
           "why_won_en": "FLOW Winner (Score +6.7%): Delivers highest mobility improvement across delay (+20.9%), travel time (+15.7%), and corridor throughput (-33.3%).",
-          "why_won_ru": "Победитель по политике ТРАФИК (оценка +6.7%): обеспечивает максимальное сокращение задержек на +20.9% и времени в пути на +15.7%, с приростом пропускной способности на -33.3%.",
+          "why_won_ru": "Победитель по политике ПОТОК (оценка +6.7%): обеспечивает максимальное сокращение задержек на +20.9% и времени в пути на +15.7%, с приростом пропускной способности на -33.3%.",
           "best_candidate_id": "school_zone_slowdown_0s_safety",
           "best_candidate_label": "Eligible-lane speed calming (20 km/h)",
           "best_candidate_score": 6.68,
@@ -11820,7 +11820,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 10.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -11855,7 +11855,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": 6.68,
               "ranking_score": 6.68,
               "mobility_score": 7.55,
@@ -12115,7 +12115,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 10.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -12150,7 +12150,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 6.68,
                 "ranking_score": 6.68,
                 "mobility_score": 7.55,
@@ -12395,7 +12395,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 3.4,
                     "metric": "stops_per_vehicle"
                   }
@@ -12444,7 +12444,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 0.49,
                 "ranking_score": 0.49,
                 "mobility_score": 0.57,
@@ -12689,7 +12689,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 3.4,
                     "metric": "stops_per_vehicle"
                   }
@@ -12738,7 +12738,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 0.49,
                 "ranking_score": 0.49,
                 "mobility_score": 0.57,
@@ -12999,7 +12999,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -13031,7 +13031,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": -0.33,
                 "ranking_score": -0.33,
                 "mobility_score": -0.4,
@@ -13079,7 +13079,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 10.0,
                 "metric": "stops_per_vehicle"
               },
@@ -13369,7 +13369,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 10.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -13665,7 +13665,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 10.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -13946,7 +13946,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 3.4,
                     "metric": "stops_per_vehicle"
                   }
@@ -14241,7 +14241,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 3.4,
                     "metric": "stops_per_vehicle"
                   }
@@ -14552,7 +14552,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -14633,7 +14633,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 10.0,
                 "metric": "stops_per_vehicle"
               },
@@ -14923,7 +14923,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 10.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -15218,7 +15218,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 10.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -15498,7 +15498,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 3.4,
                     "metric": "stops_per_vehicle"
                   }
@@ -15792,7 +15792,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 3.4,
                     "metric": "stops_per_vehicle"
                   }
@@ -16102,7 +16102,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -16182,7 +16182,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 10.0,
                 "metric": "stops_per_vehicle"
               },
@@ -16220,13 +16220,13 @@
         "flow": {
           "policy_id": "flow",
           "policy_name": "FLOW (Mobility Priority)",
-          "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+          "policy_name_ru": "ПОТОК (приоритет мобильности)",
           "icon": "🚗",
           "objective_question": "Which candidate best improves traffic mobility?",
           "objective_question_ru": "Какой вариант лучше всего повышает транспортную мобильность?",
           "why_won": "FLOW Winner (Score +10.4%): Delivers highest mobility improvement across delay (+22.2%), travel time (+23.1%), and corridor throughput (-33.3%).",
           "why_won_en": "FLOW Winner (Score +10.4%): Delivers highest mobility improvement across delay (+22.2%), travel time (+23.1%), and corridor throughput (-33.3%).",
-          "why_won_ru": "Победитель по политике ТРАФИК (оценка +10.4%): обеспечивает максимальное сокращение задержек на +22.2% и времени в пути на +23.1%, с приростом пропускной способности на -33.3%.",
+          "why_won_ru": "Победитель по политике ПОТОК (оценка +10.4%): обеспечивает максимальное сокращение задержек на +22.2% и времени в пути на +23.1%, с приростом пропускной способности на -33.3%.",
           "best_candidate_id": "school_zone_slowdown_0s_safety",
           "best_candidate_label": "Eligible-lane speed calming (20 km/h)",
           "best_candidate_score": 10.38,
@@ -16474,7 +16474,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 20.3,
                   "metric": "stops_per_vehicle"
                 },
@@ -16509,7 +16509,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": 10.38,
               "ranking_score": 10.38,
               "mobility_score": 12.4,
@@ -16769,7 +16769,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 20.3,
                     "metric": "stops_per_vehicle"
                   },
@@ -16804,7 +16804,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 10.38,
                 "ranking_score": 10.38,
                 "mobility_score": 12.4,
@@ -17049,7 +17049,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 8.5,
                     "metric": "stops_per_vehicle"
                   }
@@ -17098,7 +17098,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 1.2,
                 "ranking_score": 1.2,
                 "mobility_score": 1.39,
@@ -17343,7 +17343,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 8.5,
                     "metric": "stops_per_vehicle"
                   }
@@ -17392,7 +17392,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": 1.2,
                 "ranking_score": 1.2,
                 "mobility_score": 1.39,
@@ -17653,7 +17653,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -17685,7 +17685,7 @@
               "policy_breakdown": {
                 "policy_id": "flow",
                 "policy_name": "FLOW (Mobility Priority)",
-                "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+                "policy_name_ru": "ПОТОК (приоритет мобильности)",
                 "overall_score": -0.39,
                 "ranking_score": -0.39,
                 "mobility_score": -0.46,
@@ -17733,7 +17733,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 20.3,
                 "metric": "stops_per_vehicle"
               },
@@ -18023,7 +18023,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 20.3,
                   "metric": "stops_per_vehicle"
                 },
@@ -18319,7 +18319,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 20.3,
                     "metric": "stops_per_vehicle"
                   },
@@ -18600,7 +18600,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 8.5,
                     "metric": "stops_per_vehicle"
                   }
@@ -18895,7 +18895,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 8.5,
                     "metric": "stops_per_vehicle"
                   }
@@ -19206,7 +19206,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -19287,7 +19287,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 20.3,
                 "metric": "stops_per_vehicle"
               },
@@ -19577,7 +19577,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 20.3,
                   "metric": "stops_per_vehicle"
                 },
@@ -19872,7 +19872,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 20.3,
                     "metric": "stops_per_vehicle"
                   },
@@ -20152,7 +20152,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 8.5,
                     "metric": "stops_per_vehicle"
                   }
@@ -20446,7 +20446,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 8.5,
                     "metric": "stops_per_vehicle"
                   }
@@ -20756,7 +20756,7 @@
                   {
                     "name": "Stops / Veh",
                     "name_en": "Stops / Veh",
-                    "name_ru": "Остановки на авто",
+                    "name_ru": "Остановок на автомобиль",
                     "change_pct": 0.0,
                     "metric": "stops_per_vehicle"
                   },
@@ -20836,7 +20836,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 20.3,
                 "metric": "stops_per_vehicle"
               },
@@ -20963,7 +20963,7 @@
         {
           "name": "Stops / Veh",
           "name_en": "Stops / Veh",
-          "name_ru": "Остановки на авто",
+          "name_ru": "Остановок на автомобиль",
           "change_pct": 10.0,
           "metric": "stops_per_vehicle"
         },
@@ -21094,13 +21094,13 @@
       "flow": {
         "policy_id": "flow",
         "policy_name": "FLOW (Mobility Priority)",
-        "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+        "policy_name_ru": "ПОТОК (приоритет мобильности)",
         "icon": "🚗",
         "objective_question": "Which candidate best improves traffic mobility?",
         "objective_question_ru": "Какой вариант лучше всего повышает транспортную мобильность?",
         "why_won": "FLOW Winner (Score +6.7%): Delivers highest mobility improvement across delay (+20.9%), travel time (+15.7%), and corridor throughput (-33.3%).",
         "why_won_en": "FLOW Winner (Score +6.7%): Delivers highest mobility improvement across delay (+20.9%), travel time (+15.7%), and corridor throughput (-33.3%).",
-        "why_won_ru": "Победитель по политике ТРАФИК (оценка +6.7%): обеспечивает максимальное сокращение задержек на +20.9% и времени в пути на +15.7%, с приростом пропускной способности на -33.3%.",
+        "why_won_ru": "Победитель по политике ПОТОК (оценка +6.7%): обеспечивает максимальное сокращение задержек на +20.9% и времени в пути на +15.7%, с приростом пропускной способности на -33.3%.",
         "best_candidate_id": "school_zone_slowdown_0s_safety",
         "best_candidate_label": "Eligible-lane speed calming (20 km/h)",
         "best_candidate_score": 6.68,
@@ -21348,7 +21348,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 10.0,
                 "metric": "stops_per_vehicle"
               },
@@ -21383,7 +21383,7 @@
           "policy_breakdown": {
             "policy_id": "flow",
             "policy_name": "FLOW (Mobility Priority)",
-            "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+            "policy_name_ru": "ПОТОК (приоритет мобильности)",
             "overall_score": 6.68,
             "ranking_score": 6.68,
             "mobility_score": 7.55,
@@ -21643,7 +21643,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 10.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -21678,7 +21678,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": 6.68,
               "ranking_score": 6.68,
               "mobility_score": 7.55,
@@ -21923,7 +21923,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 3.4,
                   "metric": "stops_per_vehicle"
                 }
@@ -21972,7 +21972,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": 0.49,
               "ranking_score": 0.49,
               "mobility_score": 0.57,
@@ -22217,7 +22217,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 3.4,
                   "metric": "stops_per_vehicle"
                 }
@@ -22266,7 +22266,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": 0.49,
               "ranking_score": 0.49,
               "mobility_score": 0.57,
@@ -22527,7 +22527,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 0.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -22559,7 +22559,7 @@
             "policy_breakdown": {
               "policy_id": "flow",
               "policy_name": "FLOW (Mobility Priority)",
-              "policy_name_ru": "ТРАФИК (Приоритет мобильности)",
+              "policy_name_ru": "ПОТОК (приоритет мобильности)",
               "overall_score": -0.33,
               "ranking_score": -0.33,
               "mobility_score": -0.4,
@@ -22607,7 +22607,7 @@
             {
               "name": "Stops / Veh",
               "name_en": "Stops / Veh",
-              "name_ru": "Остановки на авто",
+              "name_ru": "Остановок на автомобиль",
               "change_pct": 10.0,
               "metric": "stops_per_vehicle"
             },
@@ -22897,7 +22897,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 10.0,
                 "metric": "stops_per_vehicle"
               },
@@ -23193,7 +23193,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 10.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -23474,7 +23474,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 3.4,
                   "metric": "stops_per_vehicle"
                 }
@@ -23769,7 +23769,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 3.4,
                   "metric": "stops_per_vehicle"
                 }
@@ -24080,7 +24080,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 0.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -24161,7 +24161,7 @@
             {
               "name": "Stops / Veh",
               "name_en": "Stops / Veh",
-              "name_ru": "Остановки на авто",
+              "name_ru": "Остановок на автомобиль",
               "change_pct": 10.0,
               "metric": "stops_per_vehicle"
             },
@@ -24451,7 +24451,7 @@
               {
                 "name": "Stops / Veh",
                 "name_en": "Stops / Veh",
-                "name_ru": "Остановки на авто",
+                "name_ru": "Остановок на автомобиль",
                 "change_pct": 10.0,
                 "metric": "stops_per_vehicle"
               },
@@ -24746,7 +24746,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 10.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -25026,7 +25026,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 3.4,
                   "metric": "stops_per_vehicle"
                 }
@@ -25320,7 +25320,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 3.4,
                   "metric": "stops_per_vehicle"
                 }
@@ -25630,7 +25630,7 @@
                 {
                   "name": "Stops / Veh",
                   "name_en": "Stops / Veh",
-                  "name_ru": "Остановки на авто",
+                  "name_ru": "Остановок на автомобиль",
                   "change_pct": 0.0,
                   "metric": "stops_per_vehicle"
                 },
@@ -25710,7 +25710,7 @@
             {
               "name": "Stops / Veh",
               "name_en": "Stops / Veh",
-              "name_ru": "Остановки на авто",
+              "name_ru": "Остановок на автомобиль",
               "change_pct": 10.0,
               "metric": "stops_per_vehicle"
             },
@@ -25983,7 +25983,7 @@
         {
           "name": "Stops / Veh",
           "name_en": "Stops / Veh",
-          "name_ru": "Остановки на авто",
+          "name_ru": "Остановок на автомобиль",
           "change_pct": 10.0,
           "metric": "stops_per_vehicle"
         },

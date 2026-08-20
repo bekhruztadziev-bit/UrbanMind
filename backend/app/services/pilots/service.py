@@ -16,7 +16,7 @@ _PILOT_CASES_DB: Dict[str, PilotCase] = {
         "title_ru": "Настроенный демонстрационный коридор: рабочее пространство сценариев сигналов",
         "spatial_scope": get_default_spatial_scope(),
         "problem_statement": "Draft workspace for collecting field observations and evaluating a future corridor signal pilot.",
-        "problem_statement_ru": "Черновое рабочее пространство для сбора натурных наблюдений и оценки будущего пилота по управлению сигналами на коридоре.",
+            "problem_statement_ru": "Черновое рабочее пространство для сбора натурных данных и оценки будущего пилотного проекта по управлению сигналами на коридоре.",
         "objective": "Evaluate signal coordination strategies under BALANCED policy to minimize corridor delays and vehicle stops while maintaining pedestrian crossing safety.",
         "objective_ru": "Оценка стратегий координации светофоров по политике БАЛАНС для минимизации задержек и остановок при сохранении безопасности пешеходов.",
         "status": "DRAFT",
@@ -31,7 +31,7 @@ _PILOT_CASES_DB: Dict[str, PilotCase] = {
         "next_action": {
             "action_code": "FIELD_DETECTOR_VALIDATION",
             "title_en": "Plan verified temporary turning-count validation",
-            "title_ru": "Спланировать верифицированную временную проверку поворотных потоков",
+            "title_ru": "Спланировать проверку поворотных потоков с помощью временных детекторов",
             "description_en": "Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming.",
             "description_ru": "Проверка фактической интенсивности и динамики схода очередей перед перепрограммированием дорожных контроллеров.",
             "priority": "HIGH",

@@ -27,7 +27,7 @@ export function PolicyComparisonCard({
             {isRu ? 'ОДИН СЦЕНАРИЙ — РАЗНЫЕ ПРИОРИТЕТЫ' : 'SAME EVIDENCE · DIVERGENT POLICY OBJECTIVES'}
           </span>
           <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            ⚖️ {t.policyComparisonTitle || (isRu ? 'Сравнение исходов по политикам (FLOW vs ECO vs BALANCED)' : 'Policy Outcome Comparison')}
+            ⚖️ {t.policyComparisonTitle || (isRu ? 'Сравнение результатов по политикам (ПОТОК, ЭКО, БАЛАНС)' : 'Policy Outcome Comparison')}
           </h4>
         </div>
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '4px' }}>

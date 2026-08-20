@@ -27,7 +27,7 @@ const DEFAULT_PILOT_CASE = {
   next_action: {
     action_code: 'FIELD_DETECTOR_VALIDATION',
     title_en: 'Plan verified temporary turning-count validation',
-    title_ru: 'Спланировать верифицированную временную проверку поворотных потоков',
+    title_ru: 'Спланировать проверку поворотных потоков с помощью временных детекторов',
     description_en: 'Verify baseline vehicle arrival rates and queue discharge dynamics prior to permanent controller programming.',
     description_ru: 'Проверка фактической интенсивности и динамики схода очередей перед перепрограммированием дорожных контроллеров.',
     priority: 'HIGH',
@@ -408,7 +408,7 @@ export function PilotWorkspace({
                 onClick={onOpenCaseStudy}
                 style={{ fontSize: '0.84rem', padding: '0.55rem 1.1rem', borderColor: '#38bdf8', color: '#38bdf8' }}
               >
-                📖 {isRu ? 'Канонический кейс-стади #001' : 'Canonical Case Study #001'}
+                📖 {isRu ? 'Канонический кейс №001' : 'Canonical Case Study #001'}
               </button>
             )}
             {onOpenReport && (

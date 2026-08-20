@@ -400,7 +400,7 @@ def export_report_html(report: DecisionReport, language: str = "en") -> str:
 
     <!-- 15-SECOND DECISION BRIEF -->
     <div class="section-card" style="border: 2px solid #0284c7;">
-        <h3>⚡ {('Краткое резюме для принятия решения (Decision Brief)' if is_ru else 'Decision Brief (15-Second Overview)')}</h3>
+        <h3>⚡ {('Краткое резюме для принятия решения' if is_ru else 'Decision Brief (15-Second Overview)')}</h3>
         <p style="margin-bottom: 6px;"><strong>{('Кандидат для полевой валидации:' if is_ru else 'Simulation-Supported Candidate:')}</strong> <span style="color: #0284c7; font-weight: bold;">{exec_summary.get('recommended_intervention_ru' if is_ru else 'recommended_intervention', '')}</span></p>
         
         <div class="kpi-grid">
@@ -433,7 +433,7 @@ def export_report_html(report: DecisionReport, language: str = "en") -> str:
 
     <!-- MODEL VS REALITY -->
     <div class="section-card">
-        <h3>🔍 {('Классификация данных (Модель vs Реальность)' if is_ru else 'Model vs Reality Data Classification')}</h3>
+        <h3>🔍 {('Классификация данных: модель и реальность' if is_ru else 'Model vs Reality Data Classification')}</h3>
         <table>
             <thead>
                 <tr>
@@ -481,7 +481,7 @@ def export_report_html(report: DecisionReport, language: str = "en") -> str:
 
     <div class="two-col">
         <div class="section-card">
-            <h3>⚖️ {('Анализ компромиссов (Trade-offs)' if is_ru else 'Trade-off Breakdown')}</h3>
+        <h3>⚖️ {('Анализ компромиссов' if is_ru else 'Trade-off Breakdown')}</h3>
             <p style="font-size: 11px; margin-bottom: 6px;">{tradeoffs.get('verdict_ru' if is_ru else 'verdict_en', '')}</p>
             <ul style="font-size: 11px; padding-left: 16px; margin: 0;">
                 {improved_list or "<li>Нет значимых улучшений</li>"}

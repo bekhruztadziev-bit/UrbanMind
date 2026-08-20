@@ -74,10 +74,10 @@ def _rule_based_summary(
         key_improvements = [
             f"Моделируемое сокращение средней задержки на {wait_reduction} с по сравнению с базовым сценарием.",
             f"Расчетное сокращение времени проезда коридора на {tt_reduction} с.",
-            f"Снижение числа остановок на авто с {base_stops:.2f} до {opt_stops:.2f}.",
+            f"Снижение числа остановок на автомобиль с {base_stops:.2f} до {opt_stops:.2f}.",
         ]
         if improved_list:
-            key_improvements.append(f"Положительная расчетная динамика: {', '.join(improved_list)}.")
+            key_improvements.append(f"Положительная расчётная динамика: {', '.join(improved_list)}.")
         if why_won_text:
             key_improvements.append(f"Обоснование политики: {why_won_text}")
 

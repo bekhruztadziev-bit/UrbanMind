@@ -56,7 +56,7 @@ export function AIExplanation({
               <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
             </svg>
             <span style={{ fontSize: '0.9rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
-              {t.analyzingResults || (isRu ? 'Анализ результатов симуляции с помощью Gemini AI…' : 'Analyzing simulation results with Gemini AI…')}
+              {t.analyzingResults || (isRu ? 'Анализ результатов моделирования с помощью Gemini…' : 'Analyzing simulation results with Gemini AI…')}
             </span>
           </div>
         ) : aiState === 'ERROR' ? (

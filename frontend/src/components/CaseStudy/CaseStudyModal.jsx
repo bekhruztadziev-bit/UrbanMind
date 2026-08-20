@@ -46,7 +46,7 @@ export function CaseStudyModal({
       console.error('Failed to load canonical case study:', err)
       setCaseStudy(null)
       setLoadError(isRu
-        ? 'Канонический кейс-стади временно недоступен. Повторите попытку позже.'
+        ? 'Канонический кейс временно недоступен. Повторите попытку позже.'
         : 'The canonical Case Study is temporarily unavailable. Please try again.')
     } finally {
       setLoading(false)
@@ -207,7 +207,7 @@ export function CaseStudyModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
               <span className="brand-mark" style={{ width: '26px', height: '26px', fontSize: '0.85rem' }}>U</span>
               <span style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.08em', color: '#38bdf8', textTransform: 'uppercase' }}>
-                URBANMIND {isRu ? 'КАНОНИЧЕСКИЙ КЕЙС-СТАДИ' : 'CANONICAL CASE STUDY'}
+                URBANMIND {isRu ? 'КАНОНИЧЕСКИЙ КЕЙС' : 'CANONICAL CASE STUDY'}
               </span>
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {caseStudy?.case_id || 'UM-CS-2026-001'}
@@ -329,7 +329,7 @@ export function CaseStudyModal({
             { id: 'brief', label: isRu ? '⚡ Краткий бриф кейса' : '⚡ Case Brief & Problem' },
             { id: 'policy', label: isRu ? '⚖️ Сравнение политик' : '⚖️ Policy Comparison' },
             { id: 'findings', label: isRu ? '📊 Показатели и 95% ДИ' : '📊 Outcomes & 95% CI' },
-            { id: 'model_vs_reality', label: isRu ? '🔍 Модель vs Реальность' : '🔍 Model vs Reality' },
+            { id: 'model_vs_reality', label: isRu ? '🔍 Модель и реальность' : '🔍 Model vs Reality' },
             { id: 'calibration', label: isRu ? '📥 Натурная калибровка и GEH' : '📥 Calibration & GEH' },
             { id: 'boundaries', label: isRu ? '🔬 Границы знания и шаг' : '🔬 What We Know & Protocol' },
           ].map((tab) => (
@@ -370,7 +370,7 @@ export function CaseStudyModal({
         >
           {loading && (
             <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-              ⏳ {isRu ? 'Загрузка кейс-стади…' : 'Loading Case Study…'}
+              ⏳ {isRu ? 'Загрузка кейса…' : 'Loading Case Study…'}
             </div>
           )}
 
@@ -461,7 +461,7 @@ export function CaseStudyModal({
                         onClick={() => setSelectedProvenance(selectedProvenance === 'stops' ? null : 'stops')}
                         style={{ background: 'rgba(56, 189, 248, 0.08)', border: `1px solid ${selectedProvenance === 'stops' ? '#38bdf8' : 'rgba(56, 189, 248, 0.25)'}`, borderRadius: '8px', padding: '0.85rem', textAlign: 'center', cursor: 'pointer' }}
                       >
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{isRu ? 'Остановок на авто' : 'Stops Reduction'} ℹ️</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{isRu ? 'Остановок на автомобиль' : 'Stops Reduction'} ℹ️</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>{formatSafeNumber(results.stops_reduction_pct, 1)}%</div>
                       </div>
                     </div>
@@ -481,18 +481,18 @@ export function CaseStudyModal({
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                           <strong style={{ color: '#38bdf8', textTransform: 'uppercase' }}>
-                            🔍 {isRu ? 'Происхождение результата (Provenance View):' : 'Result Provenance & Audit Trace:'} {provViews[selectedProvenance].metric_name}
+                            🔍 {isRu ? 'Происхождение результата:' : 'Result Provenance & Audit Trace:'} {provViews[selectedProvenance].metric_name}
                           </strong>
                           <span style={{ cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setSelectedProvenance(null)}>✕</span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                          <div><strong>Headline:</strong> {provViews[selectedProvenance].headline_value}</div>
-                          <div><strong>Source:</strong> {provViews[selectedProvenance].source}</div>
-                          <div><strong>Experiment ID:</strong> {provViews[selectedProvenance].experiment_id}</div>
-                          <div><strong>Scenario:</strong> {provViews[selectedProvenance].scenario}</div>
-                          <div><strong>Seeds:</strong> [{provViews[selectedProvenance].seeds?.join(', ')}]</div>
-                          <div><strong>Aggregation:</strong> {provViews[selectedProvenance].aggregation_method}</div>
-                          <div><strong>Statistical Method:</strong> {provViews[selectedProvenance].statistical_method}</div>
+                          <div><strong>{isRu ? 'Ключевое значение:' : 'Headline:'}</strong> {provViews[selectedProvenance].headline_value}</div>
+                          <div><strong>{isRu ? 'Источник:' : 'Source:'}</strong> {provViews[selectedProvenance].source}</div>
+                          <div><strong>{isRu ? 'Идентификатор эксперимента:' : 'Experiment ID:'}</strong> {provViews[selectedProvenance].experiment_id}</div>
+                          <div><strong>{isRu ? 'Сценарий:' : 'Scenario:'}</strong> {provViews[selectedProvenance].scenario}</div>
+                          <div><strong>{isRu ? 'Сиды:' : 'Seeds:'}</strong> [{provViews[selectedProvenance].seeds?.join(', ')}]</div>
+                          <div><strong>{isRu ? 'Агрегация:' : 'Aggregation:'}</strong> {provViews[selectedProvenance].aggregation_method}</div>
+                          <div><strong>{isRu ? 'Статистический метод:' : 'Statistical Method:'}</strong> {provViews[selectedProvenance].statistical_method}</div>
                           <div><strong>Calibration Status:</strong> {provViews[selectedProvenance].calibration_status}</div>
                         </div>
                       </div>
@@ -501,7 +501,7 @@ export function CaseStudyModal({
                     {/* Selected Candidate Rationale */}
                     <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '0.9rem', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '3px' }}>
-                        🏆 {isRu ? 'Рекомендованная мера для полевой валидации' : 'Recommended Candidate for Field Validation'}
+                        🏆 {isRu ? 'Рекомендованная мера для полевой проверки' : 'Recommended Candidate for Field Validation'}
                       </div>
                       <strong style={{ fontSize: '0.95rem', color: '#ffffff' }}>
                         {isRu ? cand.label_ru || cand.label : cand.label}
@@ -519,7 +519,7 @@ export function CaseStudyModal({
                 <div style={{ background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '1.25rem' }}>
                   <div style={{ marginBottom: '1rem' }}>
                     <h4 style={{ margin: 0, fontSize: '1rem', color: '#fff', fontWeight: 700 }}>
-                      ⚖️ {isRu ? 'Сравнение исходов по политикам (FLOW vs ECO vs BALANCED)' : 'Cross-Policy Outcome Comparison'}
+                      ⚖️ {isRu ? 'Сравнение результатов по политикам (ПОТОК, ЭКО, БАЛАНС)' : 'Cross-Policy Outcome Comparison'}
                     </h4>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                       {isRu ? 'Каждая политика оценивает единый симуляционный массив с различными весами целей.' : 'Each policy evaluates the exact same shared simulation evidence with distinct objective priorities.'}
@@ -572,7 +572,7 @@ export function CaseStudyModal({
                 <div style={{ background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div>
                     <h4 style={{ margin: 0, fontSize: '1rem', color: '#fff', fontWeight: 700 }}>
-                      📊 {isRu ? 'Первичные и вторичные показатели исходов (95% ДИ Стьюдента, df=2, t=4.303)' : 'Primary & Secondary Outcomes (95% Student-t CI, df=2, t=4.303)'}
+                      📊 {isRu ? 'Первичные и вторичные показатели (95% ДИ Стьюдента, df=2, t=4,303)' : 'Primary & Secondary Outcomes (95% Student-t CI, df=2, t=4.303)'}
                     </h4>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                       {isRu ? 'Показатели рассчитаны по каноническому протоколу многосидового микромоделирования.' : 'Metrics computed under the canonical multi-seed protocol with exact Student-t confidence intervals.'}
@@ -646,7 +646,7 @@ export function CaseStudyModal({
                 <div style={{ background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
                   <div>
                     <h4 style={{ margin: 0, fontSize: '1rem', color: '#fff', fontWeight: 700 }}>
-                      🔍 {isRu ? 'Эпистемическая классификация утверждений (Observed / Simulated / Derived)' : 'Epistemic Classification of Factual Statements'}
+                      🔍 {isRu ? 'Эпистемическая классификация утверждений' : 'Epistemic Classification of Factual Statements'}
                     </h4>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                       {isRu ? 'Строгое разграничение натурных наблюдений, симуляционных расчетов, допущений и формульных индексов.' : 'Strict methodological separation between observed telemetry, simulated physics, domain assumptions, and derived indices.'}
@@ -754,7 +754,7 @@ export function CaseStudyModal({
                     {/* Holdout Validation Dataset Action */}
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                       <strong style={{ fontSize: '0.86rem', color: '#4ade80', display: 'block', marginBottom: '4px' }}>
-                        2. {isRu ? 'Независимый проверочный набор (Holdout Validation)' : 'Independent Holdout Dataset'}
+                        2. {isRu ? 'Независимый проверочный набор (holdout)' : 'Independent Holdout Dataset'}
                       </strong>
                       <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem 0' }}>
                         {isRu ? 'Независимая проверка обязательна для перехода в статус VALIDATED с оценкой GEH.' : 'Independent verification is required for VALIDATED status with GEH evaluation.'}
@@ -766,7 +766,7 @@ export function CaseStudyModal({
                         disabled={loading}
                         style={{ padding: '0.45rem 0.85rem', fontSize: '0.78rem', width: '100%' }}
                       >
-                        🛡️ {isRu ? 'Загрузить Holdout CSV / JSON' : 'Upload Holdout CSV / JSON'}
+                        🛡️ {isRu ? 'Загрузить набор holdout (CSV / JSON)' : 'Upload Holdout CSV / JSON'}
                       </button>
                     </div>
                   </div>
@@ -807,7 +807,7 @@ export function CaseStudyModal({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                     <div style={{ background: 'rgba(34, 197, 94, 0.08)', padding: '0.9rem', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.25)' }}>
                       <strong style={{ color: '#4ade80', fontSize: '0.82rem', display: 'block', marginBottom: '6px' }}>
-                        ✓ {isRu ? 'Что модель подтверждает (What We Know):' : 'What We Know (Empirically & Structurally):'}
+                        ✓ {isRu ? 'Что подтверждает модель:' : 'What We Know (Empirically & Structurally):'}
                       </strong>
                       <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {(isRu ? caseStudy.what_we_know_ru : caseStudy.what_we_know_en)?.map((item, idx) => (
@@ -818,7 +818,7 @@ export function CaseStudyModal({
 
                     <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '0.9rem', borderRadius: '8px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
                       <strong style={{ color: '#fbbf24', fontSize: '0.82rem', display: 'block', marginBottom: '6px' }}>
-                        ⚠ {isRu ? 'Что предстоит подтвердить на практике (What We Do Not Yet Know):' : 'What We Do Not Yet Know (Pending Validation):'}
+                        ⚠ {isRu ? 'Что предстоит подтвердить на практике:' : 'What We Do Not Yet Know (Pending Validation):'}
                       </strong>
                       <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         {(isRu ? caseStudy.what_we_do_not_know_ru : caseStudy.what_we_do_not_know_en)?.map((item, idx) => (

@@ -23,7 +23,7 @@ export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenI
       </div>
       <div className="topbar-actions">
         {onOpenIntro && (
-          <button type="button" className="ghost-button intro-btn" onClick={onOpenIntro} title="Open Intro Menu">
+          <button type="button" className="ghost-button intro-btn" onClick={onOpenIntro} title={t.introMenuTitle || 'Open Intro Menu'}>
             ⚡ {t.introMenu || 'Intro'}
           </button>
         )}
@@ -31,7 +31,7 @@ export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenI
         <button type="button" className={`ghost-button ${currentView === 'explore' ? 'active' : ''}`} onClick={() => setCurrentView('explore')}>{t.explore}</button>
         <button type="button" className={`ghost-button ${currentView === 'pilots' ? 'active' : ''}`} onClick={() => setCurrentView('pilots')}>🏛️ {t.pilots || 'Pilots'}</button>
         {onOpenCaseStudy && (
-          <button type="button" className="ghost-button case-study-btn" onClick={onOpenCaseStudy} title="Open Canonical Case Study #001">
+          <button type="button" className="ghost-button case-study-btn" onClick={onOpenCaseStudy} title={t.caseStudyTitleHint || 'Open Canonical Case Study #001'}>
             📖 {t.caseStudy || 'Case Study #001'}
           </button>
         )}
@@ -42,6 +42,5 @@ export function Header({ t, currentView, setCurrentView, toggleLanguage, onOpenI
     </header>
   )
 }
-
 
 

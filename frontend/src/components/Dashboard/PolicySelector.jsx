@@ -19,7 +19,7 @@ export function PolicySelector({
       id: 'balanced',
       icon: '⚖️',
       name: t.policyBalanced || (isRu ? 'БАЛАНС' : 'BALANCED'),
-      question: isRu ? 'Какой вариант обеспечивает наилучший баланс между задержками, экологией и пешеходами?' : 'Which candidate provides the strongest compromise between mobility, environment, and accessibility?',
+      question: isRu ? 'Какой вариант обеспечивает лучший компромисс между мобильностью, воздействием на окружающую среду и доступностью?' : 'Which candidate provides the strongest compromise between mobility, environment, and accessibility?',
       desc: t.policyBalancedDesc || (isRu ? 'Многокритериальный баланс: мобильность (45%), экология (35%), безопасность (20%)' : 'Holistic multi-objective balance: mobility (45%), eco (35%), access (20%)'),
       weights: { mobility: 45, environment: 35, accessibility: 20 },
       badge: isRu ? 'Сбалансированный' : 'Multi-Objective',
@@ -27,7 +27,7 @@ export function PolicySelector({
     {
       id: 'flow',
       icon: '🚗',
-      name: t.policyFlow || (isRu ? 'ТРАФИК' : 'FLOW'),
+      name: t.policyFlow || (isRu ? 'ПОТОК' : 'FLOW'),
       question: isRu ? 'Какой вариант лучше всего повышает транспортную мобильность и снижает задержки?' : 'Which candidate best improves traffic mobility and minimizes delays?',
       desc: t.policyFlowDesc || (isRu ? 'Приоритет мобильности (80%): минимизация задержек, очередей и времени в пути' : 'Mobility priority (80%): minimize delays, queues, and travel times'),
       weights: { mobility: 80, environment: 10, accessibility: 10 },
@@ -37,15 +37,15 @@ export function PolicySelector({
       id: 'eco',
       icon: '🌱',
       name: t.policyEco || (isRu ? 'ЭКО' : 'ECO'),
-      question: isRu ? 'Какой вариант лучше всего снижает расчетные выбросы CO₂, NOₓ и холостой ход?' : 'Which candidate best reduces modeled transportation environmental impact?',
-      desc: t.policyEcoDesc || (isRu ? 'Приоритет экологии (75%): минимизация выбросов CO₂, NOₓ и холостого хода (SIMULATED)' : 'Environmental priority (75%): minimize simulated CO₂, NOₓ emissions and idling'),
+      question: isRu ? 'Какой вариант лучше всего снижает расчётное экологическое воздействие транспорта?' : 'Which candidate best reduces modeled transportation environmental impact?',
+      desc: t.policyEcoDesc || (isRu ? 'Приоритет экологии (75%): минимизация моделируемых выбросов CO₂, NOₓ и холостого хода' : 'Environmental priority (75%): minimize simulated CO₂, NOₓ emissions and idling'),
       weights: { mobility: 15, environment: 75, accessibility: 10 },
       badge: isRu ? 'Эко-приоритет' : 'Eco Priority (Simulated)',
     },
     {
       id: 'custom',
       icon: '⚙️',
-      name: t.policyCustom || (isRu ? 'НАСТРОЙКА' : 'CUSTOM'),
+      name: t.policyCustom || (isRu ? 'ПОЛЬЗОВАТЕЛЬСКАЯ' : 'CUSTOM'),
       question: isRu ? 'Какой вариант лучше всего отвечает заданным муниципальным весам целей?' : 'Which candidate best satisfies user-configured municipal objective weights?',
       desc: t.policyCustomDesc || (isRu ? 'Пользовательские муниципальные веса целей оптимизации' : 'Configurable municipal objective weights'),
       weights: {
@@ -150,9 +150,9 @@ export function PolicySelector({
         
         {/* Objective Weight Distribution Bar */}
         <div style={{ display: 'flex', height: '6px', borderRadius: '3px', overflow: 'hidden', background: 'rgba(255,255,255,0.1)', marginBottom: '0.35rem' }}>
-          <div style={{ width: `${currentPolicy.weights.mobility}%`, background: '#38bdf8' }} title={`Mobility: ${currentPolicy.weights.mobility}%`} />
-          <div style={{ width: `${currentPolicy.weights.environment}%`, background: '#4ade80' }} title={`Environment: ${currentPolicy.weights.environment}%`} />
-          <div style={{ width: `${currentPolicy.weights.accessibility}%`, background: '#fbbf24' }} title={`Accessibility: ${currentPolicy.weights.accessibility}%`} />
+          <div style={{ width: `${currentPolicy.weights.mobility}%`, background: '#38bdf8' }} title={`${t.mobility || (isRu ? 'Мобильность' : 'Mobility')}: ${currentPolicy.weights.mobility}%`} />
+          <div style={{ width: `${currentPolicy.weights.environment}%`, background: '#4ade80' }} title={`${t.environment || (isRu ? 'Экология' : 'Environment')}: ${currentPolicy.weights.environment}%`} />
+          <div style={{ width: `${currentPolicy.weights.accessibility}%`, background: '#fbbf24' }} title={`${t.accessibility || (isRu ? 'Доступность' : 'Accessibility')}: ${currentPolicy.weights.accessibility}%`} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
           <span>🚗 {t.mobility || (isRu ? 'Мобильность' : 'Mobility')}: {currentPolicy.weights.mobility}%</span>
@@ -215,4 +215,3 @@ export function PolicySelector({
     </div>
   )
 }
-

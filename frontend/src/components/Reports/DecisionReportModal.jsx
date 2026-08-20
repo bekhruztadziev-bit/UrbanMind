@@ -46,7 +46,7 @@ export function DecisionReportModal({
   const nextAction = report.next_action || {
     action_code: 'FIELD_DETECTOR_VALIDATION',
     title_en: 'Plan verified temporary turning-count validation',
-    title_ru: 'Спланировать верифицированную временную проверку поворотных потоков',
+    title_ru: 'Спланировать проверку поворотных потоков с помощью временных детекторов',
     priority: 'HIGH',
   }
 
@@ -230,8 +230,8 @@ export function DecisionReportModal({
           }}
         >
           {[
-            { id: 'brief', label: isRu ? '⚡ Краткое резюме (Decision Brief)' : '⚡ Decision Brief' },
-            { id: 'model_vs_reality', label: isRu ? '🔍 Модель vs Реальность' : '🔍 Model vs Reality' },
+            { id: 'brief', label: isRu ? '⚡ Краткое резюме для руководства' : '⚡ Decision Brief' },
+            { id: 'model_vs_reality', label: isRu ? '🔍 Модель и реальность' : '🔍 Model vs Reality' },
             { id: 'policy', label: isRu ? '🎯 Аудит политики' : '🎯 Policy & Objectives' },
             { id: 'metrics', label: isRu ? '📊 Сравнение метрик' : '📊 Metric Comparison' },
             { id: 'tradeoffs', label: isRu ? '⚖️ Компромиссы' : '⚖️ Trade-offs' },
@@ -527,7 +527,7 @@ export function DecisionReportModal({
             >
               <div>
                 <h4 style={{ margin: 0, fontSize: '1rem', color: '#fff', fontWeight: 700 }}>
-                  🔍 {isRu ? 'Классификация данных: Модель vs Реальность' : 'Model vs Reality Data Classification'}
+                  🔍 {isRu ? 'Классификация данных: модель и реальность' : 'Model vs Reality Data Classification'}
                 </h4>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                   {isRu ? mvr.traffic_calibration_summary_ru : mvr.traffic_calibration_summary_en}
@@ -696,7 +696,7 @@ export function DecisionReportModal({
               {(report.why_won || audit.why_won) && (
                 <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '0.9rem', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    🏆 {isRu ? 'Обоснование выбора победителя (Why This Won)' : 'Deterministic Winner Selection Rationale'}
+                    🏆 {isRu ? 'Обоснование выбора победителя' : 'Deterministic Winner Selection Rationale'}
                   </div>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>
                     {isRu ? (report.why_won_ru || report.why_won || audit.why_won_ru || audit.why_won) : (report.why_won_en || report.why_won || audit.why_won_en || audit.why_won)}
@@ -709,7 +709,7 @@ export function DecisionReportModal({
                 <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <h5 style={{ margin: 0, fontSize: '0.82rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      ⚖️ {isRu ? 'Сравнение исходов по политикам (FLOW vs ECO vs BALANCED)' : 'Cross-Policy Outcome Comparison'}
+                      ⚖️ {isRu ? 'Сравнение результатов по политикам (ПОТОК, ЭКО, БАЛАНС)' : 'Cross-Policy Outcome Comparison'}
                     </h5>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                       {isRu ? 'Единая симуляционная база' : 'Single Evidence Set'}
@@ -801,7 +801,7 @@ export function DecisionReportModal({
               }}
             >
               <h4 style={{ margin: '0 0 0.85rem 0', fontSize: '1rem', color: '#fff', fontWeight: 700 }}>
-                {isRu ? 'Сравнение метрик: Базовый vs. Оптимизированный коридор' : 'Corridor Metrics: Baseline vs. Optimized'}
+                {isRu ? 'Сравнение метрик: базовый и оптимизированный коридор' : 'Corridor Metrics: Baseline vs. Optimized'}
               </h4>
               <div style={{ overflowX: 'auto' }}>
                 <table className="comparison-table" style={{ width: '100%', fontSize: '0.84rem' }}>
@@ -937,7 +937,7 @@ export function DecisionReportModal({
                   {isRu ? `Выборка: ${robustness.sample_count ?? 0} прогонов` : `Sample Size: ${robustness.sample_count ?? 0} seeds`}
                 </span>
                 <span className="provenance-badge simulated">
-                  {isRu ? '95% интервал Student-t по сидам симуляции' : '95% Student-t interval across simulation seeds'}
+                  {isRu ? '95% доверительный интервал Стьюдента по сидам моделирования' : '95% Student-t interval across simulation seeds'}
                 </span>
                 <span className="provenance-badge ai">
                   {isRu ? 'Детерминированное ранжирование политик' : 'Deterministic policy ranking'}
