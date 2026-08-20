@@ -48,7 +48,25 @@ export async function fetchOptimize(payload = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  return handleResponse(response)
+  try {
+    return await handleResponse(response)
+  } catch (apiError) {
+    const policy = String(payload.policy || 'balanced').toLowerCase()
+    if (policy === 'custom') throw apiError
+    const fallbackResponse = await fetch('/canonical-optimization.json', { cache: 'no-store' })
+    if (!fallbackResponse.ok) throw apiError
+    const artifact = await fallbackResponse.json()
+    const evidence = artifact.policies?.[policy]
+    if (!evidence) throw apiError
+    return {
+      ...evidence,
+      scenario: payload.scenario || 'midday',
+      policy,
+      evidence_mode: 'PRECOMPUTED_SIMULATION_ARTIFACT',
+      artifact_type: 'PRECOMPUTED_SIMULATION_ARTIFACT',
+      runtime_status: 'SUMO_UNAVAILABLE_LOCKED_EVIDENCE',
+    }
+  }
 }
 
 export async function fetchAIExplanation(payload = {}) {

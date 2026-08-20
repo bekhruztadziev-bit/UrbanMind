@@ -381,6 +381,26 @@ def write_canonical_experiment_artifact(
 
 def load_canonical_experiment_artifact() -> Optional[CanonicalExperimentResult]:
     """Load a locked artifact only when it matches the current canonical config."""
+    result = _load_locked_canonical_experiment_artifact()
+    if result is None:
+        return None
+    # A deployed/serverless runtime may not contain SUMO or the network files
+    # needed to rebuild the current config. In that case the artifact's own
+    # configuration and result hashes are still sufficient to verify the
+    # committed, precomputed evidence.
+    try:
+        expected = get_canonical_experiment_config().get("simulation_configuration_hash")
+    except (OSError, RuntimeError, ValueError, TypeError):
+        expected = None
+    if expected is not None:
+        artifact_config_hash = result.get("configuration", {}).get("simulation_configuration_hash")
+        if artifact_config_hash != expected:
+            return None
+    return result
+
+
+def _load_locked_canonical_experiment_artifact() -> Optional[CanonicalExperimentResult]:
+    """Verify the committed artifact without requiring a live SUMO network."""
     if not CANONICAL_ARTIFACT_PATH.exists():
         return None
     try:
@@ -388,8 +408,8 @@ def load_canonical_experiment_artifact() -> Optional[CanonicalExperimentResult]:
         result = artifact.get("result")
         if not isinstance(result, dict) or artifact.get("artifact_type") != "PRECOMPUTED_SIMULATION_ARTIFACT":
             return None
-        expected = get_canonical_experiment_config().get("simulation_configuration_hash")
-        if artifact.get("configuration_hash") != expected:
+        result_config_hash = result.get("configuration", {}).get("simulation_configuration_hash")
+        if not result_config_hash or artifact.get("configuration_hash") != result_config_hash:
             return None
         expected_result_hash = hashlib.sha256(json.dumps(result, sort_keys=True, default=str).encode("utf-8")).hexdigest()
         if artifact.get("result_hash") != expected_result_hash:

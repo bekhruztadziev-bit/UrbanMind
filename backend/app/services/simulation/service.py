@@ -1,9 +1,79 @@
 from typing import Optional, Any
 from app.services.simulation.models import SimulationRequest, SimulationMetrics, OptimizationResult
-from app.services.simulation.session import run_simulation, _scenario_signal_selection
+from app.services.simulation.session import run_simulation, _scenario_signal_selection, _is_sumo_available
 from app.services.simulation.metrics import calculate_metrics
 from app.services.simulation.interventions import get_candidate_interventions
 from app.services.simulation.optimizer import evaluate_candidates, rank_candidates, compute_policy_comparison
+from app.services.simulation.policies import get_policy
+from app.services.simulation.canonical import _load_locked_canonical_experiment_artifact
+
+
+def _run_locked_canonical_optimization(policy: str, custom_weights: Optional[dict[str, float]], language: str) -> OptimizationResult:
+    """Return a policy reranking from the reviewed canonical SUMO artifact.
+
+    This path is intentionally limited to policies that were evaluated in the
+    shared canonical evidence set. It is suitable for serverless presentation
+    and policy comparison, but it never claims to be a fresh SUMO execution.
+    """
+    if policy == "custom":
+        raise RuntimeError("Custom policy optimization requires a live SUMO runtime or a separately precomputed custom evidence set.")
+
+    artifact_result = _load_locked_canonical_experiment_artifact()
+    if not artifact_result:
+        raise RuntimeError("Canonical optimization artifact is unavailable or failed integrity verification.")
+
+    primary_key = "1.0x"
+    baseline_results = artifact_result.get("baseline_results") or {}
+    policy_results = artifact_result.get("policy_results") or {}
+    baseline = baseline_results.get(primary_key)
+    primary_policies = policy_results.get(primary_key) or {}
+    selected = primary_policies.get(policy)
+    if not isinstance(baseline, dict) or not isinstance(selected, dict):
+        raise RuntimeError(f"Canonical artifact has no {policy.upper()} evidence for the primary 1.0x demand condition.")
+
+    ranking = selected.get("ranking") or []
+    winner = selected.get("winner") or (ranking[0] if ranking else None)
+    if not ranking or not isinstance(winner, dict):
+        raise RuntimeError("Canonical artifact contains no ranked candidate evidence.")
+
+    policy_definition = get_policy(policy, custom_weights)
+    policy_comparison = {
+        key: value
+        for key, value in primary_policies.items()
+        if key in ("flow", "eco", "balanced") and isinstance(value, dict)
+    }
+    return {
+        "scenario": "midday",
+        "policy": policy,
+        "policy_definition": {
+            "policy_id": policy_definition.policy_id,
+            "name": policy_definition.name,
+            "name_ru": policy_definition.name_ru,
+            "description": policy_definition.description,
+            "description_ru": policy_definition.description_ru,
+            "icon": policy_definition.icon,
+            "objective_question": policy_definition.objective_question,
+            "objective_question_ru": policy_definition.objective_question_ru,
+            "primary_dimensions": policy_definition.primary_dimensions,
+            "objective_weights": policy_definition.objective_weights,
+            "normalization_method": policy_definition.normalization_method,
+        },
+        "baseline": baseline,
+        "candidates": ranking,
+        "ranked_candidates": ranking,
+        "best_candidate": winner,
+        "why_won": selected.get("why_won_ru" if language == "ru" else "why_won_en", selected.get("why_won", "")),
+        "why_won_ru": selected.get("why_won_ru", selected.get("why_won", "")),
+        "why_won_en": selected.get("why_won_en", selected.get("why_won", "")),
+        "policy_comparison": policy_comparison,
+        "evidence_mode": "PRECOMPUTED_SIMULATION_ARTIFACT",
+        "artifact_type": "PRECOMPUTED_SIMULATION_ARTIFACT",
+        "runtime_status": "SUMO_UNAVAILABLE_LOCKED_EVIDENCE",
+        "artifact_experiment_id": artifact_result.get("experiment_id"),
+        "demand_condition": primary_key,
+        "calibration_status": artifact_result.get("calibration_status"),
+        "evidence_strength": artifact_result.get("evidence_strength"),
+    }
 
 
 def run_metrics_workflow(steps: int = 300, warmup_steps: int = 0, measurement_steps: int = 0, scenario: str = "midday", intervention: Optional[dict[str, Any]] = None, simulation_id: Optional[str] = None, seed: Optional[int] = None) -> SimulationMetrics:
@@ -39,6 +109,11 @@ def run_optimization_workflow(
     4. Computes cross-policy comparison (FLOW, ECO, BALANCED, and CUSTOM if configured)
        reusing the exact same simulation evidence.
     """
+    # A Vercel/serverless runtime has no SUMO binary. Reuse only the reviewed
+    # canonical SUMO evidence in that environment; never use synthetic values.
+    if not _is_sumo_available():
+        return _run_locked_canonical_optimization(policy, custom_weights, language)
+
     # 1. Baseline
     baseline_metrics = run_metrics_workflow(steps, warmup_steps, measurement_steps, scenario)
     
